@@ -29,6 +29,10 @@ $\code{checkRebalance}$  invokes rebalance with probability $0.15$ whenever
  the batched prefix consists of less than $0.625$ of the linked list. Rebalance 
 engages the next chunk whenever engaging it will reduce the number of chunks in the list. 
 
+We did not implement the piggybacking of puts on rebalance, and instead restart the put after every rebalance.
+This does not violate lock-freedom because the number of threads is much smaller than the chunk size, and 
+hence it is impossible for pending put operations to fill up an entire chunk.
+
 \textbf{Methodology.}
 We leverage the popular {\em synchrobench}  microbenchmark~\cite{Gramoli2015}
 to exercise a variety of workloads. The hardware platform %is a high-performance server, 
