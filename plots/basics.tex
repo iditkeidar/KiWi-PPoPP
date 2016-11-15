@@ -1,0 +1,55 @@
+\begin{tikzpicture}
+\begin{axis}[
+        mystyle,
+        unbalanced,
+        title={(a) Get  },
+        ylabel = { Throughput, M keys/sec}, 
+        xlabel = { Threads\\ }
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/get.txt}; 
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/get.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/get.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/get.txt};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[
+        mystyle,
+        unbalanced,
+        title={ (b) Put  },
+        xlabel = { Threads\\ }
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/insert-delete.txt}; 
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/insert-delete.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/insert-delete.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/insert-delete.txt};
+\end{axis}
+\end{tikzpicture}
+%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%
+\begin{tikzpicture}
+\begin{axis}[
+	mystyle,
+	scansOnly,
+	title= {\small{ (c) Scan (32K keys) }},
+        xlabel = { Threads\\ }
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/scans32K.txt};
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/scans32K.txt};  
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/scans32K.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/scans32K.txt};
+\end{axis}
+\end{tikzpicture}
+\ref{scansOnlyLegend}
