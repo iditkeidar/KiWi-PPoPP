@@ -1,0 +1,102 @@
+\newcommand{\remove}[1]{}
+
+\hyphenation{skip-list}
+
+%-------------Theorem Definitions ---------------%
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{invariant}{Invariant}
+
+%\newenvironment{proof}[1][Proof]{\begin{trivlist}
+%\item[\hskip \labelsep {\bfseries #1}]}{\qedsymb\end{trivlist}}
+\newenvironment{definition}[1][Definition]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{example}[1][Example]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{remark}[1][Remark]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+
+%\newcommand{\qed}{\nobreak \ifvmode \relax \else
+%      \ifdim\lastskip<1.5em \hskip-\lastskip
+%      \hskip1.5em plus0em minus0.5em \fi \nobreak
+%      \vrule height0.75em width0.5em depth0.25em\fi}
+%\newcommand{\qedsymb}{\hfill{\rule{2mm}{2mm}}}
+
+
+\newcommand{\codesize}{\footnotesize}
+%--------------------------------------------------%
+
+\newcommand{\code}[1]{\textsf{\fontsize{9.4}{11}\selectfont #1}}
+\newcommand{\codeF}[1]{\textsf{#1}}
+\newcommand{\readV}{\code{read\_version}\xspace}
+\newcommand{\readSet}{\code{read\_set}\xspace}
+\newcommand{\writeV}{\code{write\_version}\xspace}
+
+\newcommand{\reqI}{\textbf{LPR1}\xspace}
+\newcommand{\reqII}{\textbf{LPR2}\xspace}
+
+%---------Evaluation Macros-----------------------%
+\newcommand{\autoTree}{LR-Tree\xspace}
+\newcommand{\autoTreap}{LR-Treap\xspace}
+\newcommand{\optAutoTree}{Opt-LR-Tree\xspace}
+\newcommand{\optAutoTreap}{Opt-LR-Treap\xspace}
+\newcommand{\autoSkiplist}{LR-Skiplist\xspace}
+\newcommand{\danaTree}{LO-Tree\xspace}
+\newcommand{\danaAVL}{LO-AVL\xspace}
+\newcommand{\bronson}{snap-tree\xspace}
+\newcommand{\friendly}{CF-Tree\xspace}
+\newcommand{\skiplist}{Java skiplist\xspace}
+\newcommand{\kary}{k-ary tree\xspace}
+\newcommand{\lockfreeTree}{LF-Tree\xspace}
+\newcommand{\globalTree}{Global-Tree\xspace}
+\newcommand{\globalTreap}{Global-Treap\xspace}
+\newcommand{\domTree}{Lock-Tree\xspace}
+\newcommand{\domTreap}{Lock-Treap\xspace}
+\newcommand{\stmTree}{STM-Tree\xspace}
+\newcommand{\stmTreap}{STM-Treap\xspace}
+\newcommand{\stmSkiplist}{STM-Skiplist\xspace}
+\newcommand{\domSkiplist}{Lock-Skiplist\xspace}
+\newcommand{\getOP}{\textsc{get}\xspace}
+
+
+%---------Comments -----------------------%
+\newcommand{\Idit}[1]{{\color{red}{[\textbf{Idit:} #1 ]}}}
+\newcommand{\guy}[1]{{\color{red}{[\textbf{guy:} #1 ]}}}
+\newcommand{\eshcar}[1]{{\textcolor{violet}{\{{\bf eshcar:} \em #1\}}}}
+\newcommand{\anastas}[1]{{\textcolor{magenta}{\{{\bf Anastasia:} \em #1\}}}}
+\newcommand{\dima}[1]{{\textcolor{magenta}{\{{\bf dima:} \em #1\}}}}
+
+
+\newcommand{\cmark}{\ding{51}}%
+%\newcommand{\xmark}{\emph\footnotesize{\sffamily X}}%
+\newcommand{\xmark}{\footnotesize{\ding{55}}}%
+\newcommand{\mycode}[1]{\texttt{#1}}
+\algnewcommand{\LineComment}[1]{\Statex \ \  \(\triangleright\) {#1}}
+
+
+\newcommand{\inote}[1]{}
+\newcommand{\frameit}[2]{
+    \begin{center}
+    {\color{red}
+    \framebox[3.3in][l]{
+        \begin{minipage}{3in}
+        \inred{#1}: {\sf\color{black}#2}
+        \end{minipage}
+    }\\
+    }
+    \end{center}
+}
+
+\newcommand{\todo}[1]{{\bf [[ TODO: #1 ]]}}
+\newcommand{\comment}[1]{}
+
+\newcommand{\kiwi}{KiWi}
+\newcommand{\snaptree}{SnapTree}
+
+\newenvironment{proof}{\paragraph{Proof}}%{\hfill$\square$}
+

@@ -1,0 +1,182 @@
+\section{Code Appendix}
+\label{app:code}
+\label{sec:impl}
+
+\begin{figure}[h!]
+\codesize
+	\begin{center}
+\begin{minipage}[b]{0.48\textwidth}
+	\begin{subfigure}[b]{\textwidth}
+		\begin{algorithmic}[1]{}
+		\Function{chunk::find}{Key key}
+		\State $j_1$ = findInPendingPuts(key)
+		\State $j_2$ = findInCellList(key)
+		\State $j=\max(j_1, j_2)$
+		\State return v[j]
+		\EndFunction
+		\Statex 
+		\Function{chunk::findInPendingPuts}{Key key}
+		\State maxIndex = -1, maxVer = -1
+		\State \textbf{for} $t=0\ldots \#threads-1$ \textbf{do}
+		\State \ \ entry = p[t]
+		\State \ \ \textbf{if} entry $\neq$ null \textbf{then}
+		\State \ \ \ \ \textbf{if} k[entry.i].key == key \textbf{then}
+		\State \ \ \ \ \ \ cell = helpPending(entry) 
+		\State \ \ \ \ \ \ \textbf{if} cell $\neq$ null  \textbf{\color{blue}and cell.ver $\geq$ maxVer} \textbf{then}
+		\State \ \ \ \ \ \ \ \ maxIndex = max(maxIndex, cell.val)
+		\State \ \ \ \ \ \ \ \ \textbf{\color{blue}maxVer = max(maxVer, cell.ver)}
+		\State return maxIndex
+		\EndFunction
+		\end{algorithmic}
+		\caption{Auxiliary code for get operation} \label{fig:find}
+	\end{subfigure}
+\vfill
+	\begin{subfigure}[b]{\textwidth}
+		\begin{algorithmic}[1]{}
+		\Function{chunk::freeze}{}
+		\State changeStatus(NORMAL,FREEZE)
+		\State \textbf{for} $t=0\ldots \#threads-1$ \textbf{do}
+		\State \ \ \textbf{while} p[t] $\neq$ $\langle \bot, \bot,$ FREEZE$\rangle$ \textbf{do}
+		\State \ \ \ \ entry = p[t]
+		\State \ \ \ \ \textbf{if} entry $\neq$ null \textbf{then}
+		\State \ \ \ \ \ \ cell = helpPending(entry)
+		\State \ \ \ \ \ \ \textbf{if} cell $\neq$ null \textbf{then} 
+		\State \ \ \ \ \ \ \ \ helpInsertCell(cell)
+		\State \ \ \ \ freeze = $\langle \bot, \bot,$ FREEZE$\rangle$
+		\State \ \ \ \ CAS(p[t], entry, freeze)
+		\EndFunction
+		\Statex 
+		\Function{rebalance::balance}{}
+		\State \textbf{\color{blue}ver = helpScans()}
+		\Statex \Comment{keep all undeleted {\color{blue}versions $\geq ver$, plus one $< ver$}}
+		\State balanced = copyUndeletedCells(\textbf{\color{blue}ver})
+		\State next = engaged.last().next()
+		\State \textbf{if} balanced.isNotEmpty() \textbf{then}
+		\Statex \Comment{connect \emph{balanced} tail to chunk's list, not marked}
+		\State \ \ balanced.last().nextPtr = $\langle next,0\rangle$  
+		\State return balanced
+		\EndFunction
+		\Statex 
+		\Function{\textbf{\color{blue}rebalance::helpScans}}{}
+		\State ver = globalVersion 
+		\State \textbf{for} $t=0\ldots \#threads-1$ \textbf{do}
+		\State \ \ entry = s[$t$]
+		\State \ \ \textbf{if} entry.ver == EMPTY \textbf{then}
+		\State \ \ \ \ help.add($t$,entry.aba) \Comment{collect scans to help to}
+		\State \ \ \textbf{else if} entry.ver $\neq$ null \textbf{then}
+		\State \ \ \ \ ver = $\min(ver,entry.ver)$
+		\State \textbf{if} help is not empty \textbf{then}
+		\State \ \ readPoint = FAI(globalVersion) 
+		\State \ \ \textbf{for all}  $\langle i,aba\rangle$ in help \textbf{do}
+		\State \ \ \ \ CAS(s[$i$],  $\langle EMPTY,aba\rangle$, $\langle readPoint,aba\rangle$) %\Comment{set read point}
+		\State return ver
+		\EndFunction
+		\end{algorithmic}
+\caption{Auxiliary code for rebalance operation} \label{fig:freeze}
+	\end{subfigure}
+\vfill
+\end{minipage}
+\hspace{0.02\textwidth}
+\begin{minipage}[b]{0.48\textwidth}
+	\begin{subfigure}[b]{\textwidth}
+		\begin{algorithmic}[1]{}
+		\Function{chunk::allocate}{Key key, Value val}
+		\State i = FAI(kCounter) \Comment{allocating space for the key}
+		\State j = FAI(vCounter) \Comment{allocating space for the value}
+		\State \textbf{if} $i \geq$ k.size or $j \geq$ v.size \textbf{then} return null %\Comment{allocation failed - no space}
+		\State v[j] = val, k[i].key = key, k[i].val = j %\Comment{fill in allocated space}
+		\State CAS(p[\textit{tid}], null, $\langle i, j, \bot\rangle$) %\Comment{publish in pending puts array, unless freeze}
+		\State return helpPending(p[\textit{tid}])
+		\EndFunction
+		\Statex 
+		\Function{chunk::helpPending}{Entry t}
+		\State \textbf{if} t.version == FREEZE \textbf{then} return null %\Comment{version allocation failed - chunk is frozen}
+		\State \textbf{\color{blue}ver = globalVersion.get()}
+		\State \textbf{\color{blue}CAS(t.ver, $\bot$, ver)}
+		\State \textbf{\color{blue}k[t.i].ver = t.ver}
+		\State return k[t.i] \Comment{allocation succeeded}
+		\EndFunction
+		\Statex 
+		\Function{chunk::insertCell}{Cell cell}
+		\State helpInsertCell(cell)
+		\State old = p[\textit{tid}]
+		\State \textbf{if} state == FREEZE \textbf{then}
+		\State \ \ new = $\langle \bot, \bot,$ FREEZE$\rangle$
+		\State \textbf{else}
+		\State \ \ new = null
+		\State CAS(p[\textit{tid}], old,new)
+		\EndFunction
+		\Statex 
+		\Function{chunk::helpInsertCell}{Cell cell}
+		\State \textbf{while} true \textbf{do}
+		\State \ \ prev = findPrev(cell.key, \textbf{\color{blue}cell.version})
+		\State \ \ next = prev.next
+		\State \ \ \textbf{if} next == cell \textbf{then} return \Comment{cell in list}
+		\State \ \ \textbf{if} next.key == cell.key 
+		\Statex\ \ \ \ \ \ \ \ \ \ \textbf{\color{blue}and next.ver == cell.ver} \textbf{then}
+%		\State \ \ \textbf{if} $\langle next.key, \textbf{\color{blue}next.ver} \rangle$ == $\langle cell.key, \textbf{\color{blue}cell.ver} \rangle$ \textbf{then}
+		\State \ \ \ \ old = next.val
+		\State \ \ \ \ \textbf{if} cell.val $\leq$ old \textbf{then} return \Comment{value in list or}
+		\Statex \Comment{overridden by more recent}
+		\State \ \ \ \ \textbf{if} cell.val $>$ old \textbf{then} \Comment{more recent - override}
+		\State \ \ \ \ \ \ CAS(next.val, old, cell.val)
+		\State \ \ \textbf{else}
+		\State \ \ \ \ cell.next = next
+		\State \ \ \ \ CAS(prev.next, next, cell)
+		\EndFunction
+		\end{algorithmic}
+		\caption{Auxiliary code for put operation} \label{fig:allocate}\label{fig:insertcell}
+	\end{subfigure}
+\vfill
+\end{minipage}
+		\caption{Auxiliary code.  k, v and p are the chunk's keys, values and pending puts arrays, respectively. s is the global scan array. \textbf{\color{blue}Bold blue code is the extension needed to support multi-versioning.}} \label{fig:aux}
+	\end{center}
+\end{figure}
+
+We elaborate on the algorithm of a rebalance operation. First, it creates a rebalance object to maintain the context of the operation. It tries to engage the chunk that triggered this operation and some of its neighbors. Specifically, in our implementation, if rebalancing the triggering chunk and its successor in the chunk list reduces the number of chunks then they are both engaged in the rebalance. This allows the the data structure be balanced.
+The result is a list of successive chunks (at least one) that are engaged with the same rebalance object, and cannot be engaged with other rebalance objects. Then, it freezes all engaged chunks (see Figure~\ref{fig:freeze}) to make sure no additional cells can be inserted to any of the chunks while they are being copied. In addition, the last engaged chunk is marked as deleted (following the common technique of making its next pointer immutable) and the tail of the balanced chunks is connected to the chunk list. The next pointer of the last engaged chunk can be traversed by get and scan operations, but it cannot be changed by an adjacent rebalance operation. An operation that wants to update this link first helps the rebalance that marked the link to complete.  
+
+At this point, the operation generates the list of new balanced chunks that will replace the engaged chunks in the data structure. 
+To fix the version that marks the scans watermark, the rebalance reads through the global scan array to find the minimal  read point of outstanding scans. It acquires a read point and helps set it to scans with empty entry. Empty entries are augmented with \emph{aba} counters to avoid a scenario in which the rebalnce helps a scan that published an empty entry after the read point is acquired.
+
+There are two possible balanced outputs: an empty list means all cells in engaged chunks are deleted; one or more chunks in the list, where each chunk is initiated as an infant and with a pointer to its parent -- the first engaged chunk. In case the list is not empty, all copied cells are consecutive in the underlying array; last chunk is $25\%-75\%$ full; and all chunks except the last one are half full. First chunk in balanced list inherits the minimal key attribute from the first engaged chunk; the rest set it equal to their first cell key (the actual minimal key).
+
+To complete the rebalance operation the engaged chunks are swapped with the new balanced chunks.  The new chunks swap the engaged chunks in the chunk list. This is done by atomically changing the link pointing to the first engaged chunk to point to the first balanced chunk. 
+An exception is when the balanced list is empty (when all cells are deleted) then the previous chunk is connected to the chunk following the last engaged chuck, thereby eliminating the engaged chunks from the list without replacing them with any new chunk.
+
+Now the balanced chunks are accessible from the list but not from the index. Since at this point engaged and balanced chunk hold the same data this is ok. Finally, the index is updated to point to the new balanced chunks instead of the engaged chunks and the balanced chunks are marked as normal so that put operations can update them.
+
+So far we only considered a full chunk as a trigger for rebalance; this is crucial for being non-blocking. However, 
+a main source for performance optimization is the binary search in the chunk's batch prefix. 
+To this end, {\kiwi} utilizes a rebalancing scheme which maximizes 
+the number of cells in the batch prefix. Specifically, we introduce $\theta$ \emph{ratio threshold} as an additional rebalance trigger. 
+When the ratio between the number of batched cells and the total number of cells in the cell list becomes lower then $\theta$ each ensuing put
+to the chunk triggers a rebalance with probability $p$. 
+We have observed that this probabilistic approach helps avoid contention on rebalanced chunks.
+For evaluation we used $\theta=0.625$ and $p=0.15$.
+
+
+\remove{
+\begin{figure}
+	\begin{center}
+		\begin{algorithmic}[1]{}
+  		\Function{kiwi::swapIndex}{List$\langle Chunk \rangle$ engaged, List$\langle Chunk \rangle$ balanced}
+		\State \textbf{for all} chunk in engaged \textbf{do}
+		\State \ \ key = chunk.getKey()
+		\State \ \ \textbf{if} first chunk in engaged \textbf{then}
+		\State \ \ \ \ \textbf{if} balanced.isNotEmpty() \textbf{then} index.swap(key, chunk, balanced.first()) \Comment{atomic swap}		
+		\State \ \ \ \ \textbf{else if} key == $-\infty$ \textbf{then} index.swap(key, chunk, new Chunk(key)) \Comment{atomic swap}
+		\State \ \ \ \ \textbf{else} index.remove(key) \Comment{remove first engaged chunk}
+		\State \ \ index.remove(key) \Comment{remove engaged chunks}
+		\State \textbf{for all} chunk in balanced \textbf{do}
+		\State \ \ key = chunk.getKey()
+		\State \ \ \textbf{if} not first chunk in balanced \textbf{then}
+		\State \ \ \ \ index.put(key, chunk) \Comment{add balanced chunks}
+		\State \textbf{for all} chunk in balanced \textbf{do}
+		\State \ \ chunk.changeStatus(INFANT, ALIVE) \Comment{remove pointer to parent chunk}
+		\EndFunction
+		\end{algorithmic}
+		\caption{Swap chunks in index method} \label{fig:swap}
+	\end{center}
+\end{figure}
+}

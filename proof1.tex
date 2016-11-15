@@ -1,0 +1,151 @@
+\newcommand{\lp}[1]{LP(\ensuremath{#1})}
+
+\section{Correctness}
+\label{sec:proof}
+
+We now provide the key arguments for \kiwi's correctness. 
+Due to space considerations, we state the main lemmas without proof, while 
+a formal correctness proof is deferred to the full version of the paper.
+We begin in Section~\ref{sec:spec} by defining the model and correctness notion we seek to prove, and then present  
+the key safety arguments in Section~\ref{sec:safe}. We briefly touch on liveness in Section~\ref{sec:live}.
+
+\subsection{Model and Correctness Specification}
+\label{sec:spec}
+
+We consider an asynchronous shared memory model~\cite{Welch2004}, where a finite number of threads execute memory \emph{operations} on shared objects. High-level objects, such as a map, are implemented using low-level memory objects supporting atomic read, write, and read-modify-write (e.g., CAS) operations. 
+High-level operations are \emph{invoked}, then perform a sequence of  \emph{steps} on low-level objects, and finally \emph{return}.
+
+Our correctness notion is \emph{linearizability}, which intuitively means that the object ``appears to be'' executing sequentially. 
+It is defined for a \emph{history}, which is a sequence of operation invoke and return steps, possibly by multiple threads.
+A history partially orders operations: 
+operation $op1$ \emph{precedes} operation $op2$ in a history if $op1$'s return precedes $op2$'s invoke;
+two operations that do not precede each other are \emph{concurrent}. In a  \emph{sequential} history, there are no concurrent operations.
+An object is specified using a \emph{sequential specification}, which is the set of its allowed sequential histories. 
+Roughly speaking, a history $\sigma$ is \emph{linearizable}~\cite{HerlihyW1990} if it has a sequential permutation that preserves 
+$\sigma$'s precedence relation and satisfies the object's sequential specification. 
+\remove{
+For a history $\sigma$, \emph{complete($\sigma$)} is the sequence obtained by removing invocations with no responses from $\sigma$.
+We assume that histories are \emph{well-formed}, meaning that the sub-sequence of each thread's steps in a history is sequential.
+An object is \emph{linearizable}~\cite{HerlihyW1990} if each of its histories $\sigma$ can be extended by adding zero or more response events to a history $\sigma'$, so that  \emph{complete($\sigma'$)} has a sequential permutation that preserves $\sigma$'s precedence relation and 
+satisfies the object's sequential specification. 
+}
+
+\kiwi\ implements a map offering put, get and scan operations, and in its sequential specification, get, and scan return the latest value inserted by a put for each key in their ranges.
+
+\subsection{\kiwi's Linearizability}
+\label{sec:safe}
+
+Proving {\kiwi} is linearizable is accomplished by identifying, for every operation in a given history, a \emph{linearization point} between its invoke and return steps, so that the operation ``appears to'' occur atomically at this point. 
+The linearization point of operation $op$ is denoted \lp{op}. 
+
+\paragraph{Puts.} 
+
+We saw above that puts in a chunk $C$
+are ordered (lexicographically) according to their $\langle v, j \rangle$  pairs, where
+$\langle v, i \rangle$ is published in their PPA in phase 2 of the put, and \code{$C$.k[$i$].valPtr$=j$}; this pair is called the \emph{full version} of the put.
+We note that in each chunk, the full versions are unique, because threads obtain $j$ using F\&A.
+First,  $i$ is published in \code{ppa[t].idx} (line~\ref{l:put-version}) and then
+the location-version pair obtains its final value by a successful CAS of \code{ppa[t].ver}, either by the put (line~\ref{l:put-cas-version}) or by a helping thread (line~\ref {l:get-help} or~\ref{l:scan-help}). 
+We refer to 
+a step publishing $i$ in \code{ppa[t].idx} and to
+the step executing the successful CAS  as the put's \emph{publish time} and the \emph{full version assignment time}, resp., 
+and say that the put \emph{assigned}  $\langle v, j \rangle$ for its key in $C$.
+
+We note that each put assigns a full version at most once. 
+Once a put operation $po$ for key $k$ assigns its full version in chunk $C$ at time $t$, we can define its linearization point. 
+There are two options: 
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+\setlength{\parskip}{0pt}
+\item If at time $t$
+$po$'s full version $\langle v, j \rangle$ is the highest for $k$ in $C$, (among entries in $C$'s {PPA} and  linked list),
+then  \lp{po} is the last step reading $v$ from \code{GV} before $t$.
+%%%% (line~\ref{l:put-LP}). 
+\item  Otherwise, let $po'$ be the 
+\code{put($k,\_$)} operation that assigns for $k$ in $C$ the smallest full version exceeding $po$'s
+before time $t$. Then \lp{po} is recursively defined to be \lp{po'}. Note that 
+$po$'s full version assignment time exceeds that of  $po'$, so the recursive definition does not induce cycles. 
+\end{enumerate}
+In case multiple puts are assigned to the same point, they are linearized in increasing full version order.
+
+While a chunk is accessible from the chunks list its key range is well-defined.
+We say that key $k$ is in the \emph{range} of chunk $C$ if $k \geq C$.\code{minKey} and $k < C.$\code{next.minKey}.
+$C$ is \emph{mutable} if put operations can assign full version in $C$, otherwise it is \emph{immutable}.
+An invariant of the rebalance process is that 
+a chunk is immutable before it is accessible from the chunks list and after the freezing stage is completed. 
+In addition, at any point in time each key is covered by the range of at most one mutable chunk. 
+It is easy to show that a put operation always lands at a mutable chunk with a range that covers the key.
+Thus, rebalance operations divide puts of key $k$ into disjoint groups; one group per mutable epoch of each chunk covering the key.
+The following lemma establishes the order among linearization points of put operations within the same epoch.
+\begin{lemma}
+\label{proof:put}
+Consider chunk $C$ accessible as of time $t_0$, key $k$ in the range of $C$, and an
+operation $po=$\code{put($k, \_$)} that assigns $\langle v, j\rangle$ to $C$.\code{ppa} at time $t$. Then  
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+\setlength{\parskip}{0pt}
+\item \label{proof:put:lp1} \lp{po} is after $po$ allocates location $j$ for its value and before $t$.
+\item \label{proof:put:lp2} \lp{po} is a read step of \code{GV} that returns $v$.
+\item \label{proof:put:lp3} \lp{po} is after some operation $po'$ (possibly $po$, but not necessarily) publishes for $k$ to $C$ where later $po'$ assigns a full version equal to or greater than $\langle v, j\rangle$.
+\item \label{proof:put:lp4} The linearization points of all operations that publish for $k$ to $C$ preserve their full version order.
+\item \label{proof:put:lp5} At time $t_0$, the value published to $k$ by the put with the latest linearization point before $t_0$ is associated with the highest full version in C's linked list.
+\end{enumerate}
+\end{lemma}
+
+
+%For every key k and time t when k is in the range of a chunk C that is accessible (either from the index or from the chunks list), the value published to k by the put with the latest LP before t is associated with the highest location-based version in C's linked list and PPA.
+
+
+\paragraph{Gets and scans.}
+
+The most subtle linearization is of get operations.
+A get operation $go$ may land in a mutable or immutable chunk. 
+We need to linearize $go$ before all concurrent puts that $go$ misses while seeking the value.
+%get
+For a get operation $go$ for a key $k$ in the range of chunk $C$, there are three options:
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+\setlength{\parskip}{0pt}
+\item If $C$ is not accessible from the chunks list when $go$ starts traversing $C$'s PPA, then \lp{go} is the last step in which $C$ is still accessible from the chunks list.
+\item Else, if $go$ does not find $k$ in $C$ then \lp{go} is when $go$ starts traversing $C$'s PPA.
+\item Else, let $po$ be the put operation that inserts the value returned by $go$. \lp{go} is the latest between when $go$ starts traversing $C$'s {PPA} and immediately after \lp{po}.
+\end{enumerate}
+
+The next lemma proves that in the third case no other put operation writing to $k$ is linearized after \lp{po} and before \lp{go}.
+We rely on %Conditions~\ref{proof:put:lp1},~\ref{proof:put:lp3} and~\ref{proof:put:lp4} of 
+Lemma~\ref{proof:put} and the rebalance invariants to prove it.
+
+\begin{lemma}
+\label{proof:get}
+Consider a get operation $go$ retrieving the value of key $k$ from chunk $C$. Let $t$ be the step in which $go$ starts traversing $C$'s {PPA}. Then:
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+\setlength{\parskip}{0pt}
+\item \label{proof:get:lp1} If $go$ does not find $k$ in $C$, then for each operation $po$ publishing $k$ in $C$, \lp{po} is after $t$.
+\item \label{proof:get:lp2} If $go$ returns the value written by operation $po$, then \lp{go} is after \lp{po}, and for each  $po' \neq po$ publishing $k$ in $C$, \lp{po'} is either before \lp{po} or after $t$.
+\end{enumerate}
+\end{lemma}
+
+Scan operations are linearized when \code{GV} is increased beyond their read point, typically by their own F\&I, and sometimes by a helping rebalance. 
+We rely on %Conditions~\ref{proof:put:lp2} and~\ref{proof:put:lp4} of 
+Lemma~\ref{proof:put} to prove the following:
+\begin{lemma}
+\label{proof:scan}
+Consider a scan operation $so$ that acquires version $v$ as its read point. For each key $k$ in the range of the scan, $so$ returns the value of the put operation writing to $k$ that is linearized last before \lp{so}.
+\end{lemma}
+
+The definition of the linearization points of scans and get operations imply that these operations are linearized between their invocation and return.
+Condition~\ref{proof:put:lp1} of Lemma~\ref{proof:put} implies the same for puts. 
+It is easy to show that gets and scans land in chunks that contain the saught keys in their ranges. Combined with the rebalancing invariants,
+Lemma~\ref{proof:get} shows that get operations satisfy their sequential specification, and Lemma~\ref{proof:scan} proves that scans satisfy their sequential specification. 
+Hence we conclude that \kiwi\ implements a linearziable map. 
+
+
+\subsection{Liveness}
+\label{sec:live}
+
+ {\kiwi}'s gets and scans are \emph{wait-free}, namely, in any execution, every operation completes within a finite number of steps by its invoking thread. The proof simply shows that the number of iterations in the loops in these operations is finite. 
+
+We further prove that put operations are \emph{lock-free}, namely, in every execution, \emph{some} operation completes. We show that although a put operation can execute an infinite number of rebalances, this occurs because 
+some operation (and in fact many operations) successfully complete a put.
+

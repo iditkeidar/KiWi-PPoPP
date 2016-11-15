@@ -1,0 +1,140 @@
+
+
+\section{Correctness}
+\label{sec:proof}
+\subsection{Model}
+We consider an asynchronous shared memory model~\cite{Welch2004}, where a finite number of threads interact via shared objects. %key-value map data structure.
+%The map supports \emph{put(key, value)} and \emph{get(key)} for storing and retrieving value associated with a single key, and \emph{scan(minKey,maxKey)} for retrieving all values associated with keys in the given range.
+%Updating is cast into putting an existing key with a new value, and deleting one is performed by putting a deletion marker, $\bot$, as the key's value.
+Every thread executes a sequence of operations.
+An operation's execution consists of a sequence of primitive \emph{steps}, beginning with an \emph{invoke} step, followed by
+atomic accesses to shared objects, and ending with a \emph{return} step. Steps also modify the executing thread's local variables.
+We allow read and write steps,  as well as atomic
+read-modify-write steps, such as \emph{compare-and-swap} (CAS), \emph{fetch-and-increment} (F\&I) and \emph{fetch-and-add} (F\&A). 
+
+A \emph{configuration} is an assignment of values to all shared and local variables. A step takes the system from one
+configuration to another. %Steps are deterministically defined by the data structure's protocol and the current configuration.
+In the \emph{initial configuration}, each variable holds its initial value.
+
+An \emph{execution} is an alternating sequence of configurations and steps,
+$C_0,s_1,\ldots,s_i,C_i,\ldots$,
+$C_0$ is an initial configuration,
+and each configuration $C_i$ is the result of
+executing step $s_i$ on configuration $C_{i-1}$.
+%We only consider finite executions in this paper.
+
+An operation $op$ is \emph{pending} in 
+configuration $C$ in a given execution, if the thread executing $op$ has yet taken the last step of $op$ in the
+execution leading to $C$.
+The \emph{interval of an operation} $op$ is the execution interval
+that starts at the first step of $op$ and ends at the last step of
+$op$, if there is one, taken by the thread executing $op$. If $op$ is pending, then
+the interval of $op$ is the (possibly infinite) execution interval
+starting at the first step of $op$. 
+Two operations \emph{overlap} if their intervals overlap.
+
+%An execution is \emph{serial} if steps of different operations are not interleaved.
+%In other words, a serial execution is a sequence of operation executions.
+An execution is \emph{serial} if no operations overlap; this means that every operation is
+executed to completion before another operation starts.
+Two executions are \emph{equivalent} if every thread in these executions issues the same
+operations in the same order and gets the same result for each operation.
+
+\remove{
+An implementation of a key-value map is \emph{linearizable}~\cite{HerlihyW1990} if 
+any execution $\pi$ can be extended to execution $\pi'$ by discarding some pending operations in $\pi$, and completing the others, such that $\pi'$ is equivalent to a serial execution, called its linearization, which preserves the order of non-overlapping operations in $\pi$. 
+
+An implementation of an operation is \emph{wait-free} if in any execution of the operation, the operation itself completes within a finite number of steps by the invoking thread. The implementation of an operation is \emph{lock-free} if in any execution of the operation \emph{some} operation completes within a finite number of steps by the invoking thread.
+}
+
+\subsection{Safety}
+Proving {\kiwi} is \emph{linearizable}~\cite{HerlihyW1990} %linearizable 
+is accomplished by identifying, for every operation, a linearization point inside its interval, so that the operation appears to occur atomically at this point. %Specifically, 
+We show that get and scans return the same values as in an equivalent serial execution defined by this linearization.
+
+While a put operation is pending, its entry in the \code{ppa} contains the version of the operation, $v$, and the location of its value, $j$. Paired, $\langle v, j\rangle$ is called the \emph{location-based version} of the operation. It is also stored in the cell the put operation inserts or updates in the cell linked list.
+We linearize put operations by the lexicographical order of their location-based version; namely, $\langle v', j'\rangle < \langle v, j\rangle$ if $v'<v$ or $v'=v$ and $j'<j$. Scan operations are linearized when the global version counter is increased beyond their read point. The most subtle linearization is of get operations. We need to make sure it is linearized before all the concurrent puts the operation missed while seeking the value in the chunk. Next we formally define the linearization points of each operation; the linearization point of operation $op$ is denoted \lp{op}. 
+
+%It can be inferred from the pseudocode that all operations arrive at a chunk spanning the first key they need to read or update. This is determined by the chunks minimal keys which never change.  
+Rebalance operations divide linearization points into epochs: roughly, an epoch starts when a chunk changes its status from infant to normal and ends when the chunk freezes (freezing stage is completed). This is similar to the \emph{freezing point} used to define the linearization points in~\cite{BraginskyP2012}. Therefore, we describe linearization points of put and get operations in the context of a chunk. Scans are linearized in a chunk-free context. We show a scan observes a consistent view, even when traversing multiple chunks.
+
+%put
+Consider chunk $c$, an operation $op$ \emph{updates $c$}, if there is a step in which a version $v$ is written into $op$'s entry in $c$'s \code{ppa}. 
+Let $OP_k^c$ be the set of put operations writing to $k$ which update $c$. 
+A put operation $op \in OP_k^c$ first publishes in the \code{ppa} the index of its key which holds the value index, $j$. 
+Then in step $\sigma$, $v$ is written (with a successful CAS) in $op$'s entry so it holds $op$'s location-based version $\langle v, j\rangle$. 
+
+The linearization point of $op$ is derived from the state in configuration $C$ following $\sigma$. If in $C$ each cell with key $k$ in the cell linked list and each entry with key $k$ in the \code{ppa} have location-based version that is lower than $\langle v, j\rangle$, then \lp{op} is defined to be the last read step of the global version counter that returns $v$ before $\sigma$. Otherwise, let $op'$ be the put operation writing to $k$ which published $\langle v', j'\rangle$ in the \code{ppa} before $\sigma$ s.t. $\langle v', j'\rangle$ is the minimal location-based version which exceeds $\langle v, j\rangle$. \lp{op} is the same as \lp{op'}; put operations with the same linearization point are serialized by their location-based version order.
+
+For lack of space, the proofs of the following lemmas are deferred to the full paper.%Appendix~\ref{app:proof:safety}.  
+
+\begin{lemma}
+\label{proof:rebalance}
+Consider chunk $c$ spanning keys $[k_l,k_u)$, which changes its state from \code{INFANT} to \code{NORMAL} in step $\delta_1$ and is engaged in a rebalance that completes the freezing stage in step $\delta_2$.
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+\setlength{\parskip}{0pt}
+\item \label{proof:rebalance:infant} All cells with key in $[k_l,k_u)$ that where last added to and not removed from the data structure before $\delta_1$ are in $c$'s linked-list in $\delta_1$,
+\item \label{proof:rebalance:freezing} No put operation can publish its version in $c$'s \code{ppa} after $\delta_2$.
+\end{enumerate}
+\end{lemma}
+
+We rely on Lemma~\ref{proof:rebalance} when proving the next Lemma.
+
+\begin{lemma}
+\label{proof:put}
+Consider chunk $c$, key $k$ and operation $op$ in $OP_k^c$, which in step $\sigma$ publishes $\langle v, j\rangle$ in $c$'s \code{ppa}. The following claims hold:
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+\setlength{\parskip}{0pt}
+\item \label{proof:put:lp1} \lp{op} is after $op$ allocates the location $j$ for its value and before $\sigma$,
+\item \label{proof:put:lp2} \lp{op} is in a read step of the global version counter that returns $v$,
+\item \label{proof:put:lp3} \lp{op} is after some operation in $OP_k^c$ (possibly $op$) with location-based version equal or greater than $\langle v, j\rangle$ is published in $c$'s \code{ppa},
+\item \label{proof:put:lp4} the linearization points of all operations in $OP_k^c$ preserve their location-based version order.
+\end{enumerate}
+\end{lemma}
+
+
+%get
+Consider a get operation $op$ reading key $k$ that starts traversing $c$'s \code{ppa} in step $\tau$. 
+If $c$ is not accessible from the chunks list in the configuration preceding $\tau$, then \lp{op} is in the last step in which $c$ is accessible from the chunks list.
+Otherwise, $c$ is accessible from the chunks list in the configuration preceding $\tau$.
+If $op$ did not find the key in $c$ then \lp{op} is $\tau$. Otherwise, let $op_l$ be the put operation which inserted the value returned by $op$. \lp{op} is the latest between $\tau$ and immediately after \lp{op_l}. It can be inferred from the code and the way linearization points of put operations are defined that \lp{op} is in the interval starting in $\tau$ and ending when $op$ reads the returned value. 
+
+The next lemma proves that no other put operation writing to $k$ is linearized after \lp{op_l} and before \lp{op}.
+We rely on Conditions~\ref{proof:put:lp1},~\ref{proof:put:lp3} and~\ref{proof:put:lp4} of Lemma~\ref{proof:put}
+to prove the next Lemma.
+
+\begin{lemma}
+\label{proof:get}
+Consider a get operation $op$ retrieving the value of key $k$ from chunk $c$. Let $\tau$ be the step in which $op$ starts traversing the \code{ppa}. The following claims hold:
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+\setlength{\parskip}{0pt}
+\item \label{proof:get:lp1} If $op$ did not find the key in $c$, then for each operation $op_m \in OP_k^c$, \lp{op_m} is after $\tau$.
+\item \label{proof:get:lp2} If $op$ returns the value written by operation $op_l$, then \lp{op} is after \lp{op_l}, and for each operation $op_m \in OP_k^c\setminus\{op_l\}$, \lp{op_m} is either before \lp{op_l} or after $\tau$.
+\end{enumerate}
+\end{lemma}
+
+%scan
+Consider a scan operation $op$. \lp{op} is the FAI step which increases the global version counter and returns the version number that is later set (with a successful CAS) in $op$'s entry in the global \code{psa}. The F\&I is done either by the process executing the scan or a concurrent rebalance operation which helps the scan acquire the version. Either way it can be inferred from the use of \emph{aba} counters, that the F\&I is done after the scan entry is published in  \code{psa}, and before the scan reads the version from  \code{psa}.
+We rely on Conditions~\ref{proof:put:lp2} and~\ref{proof:put:lp4} of Lemma~\ref{proof:put}
+to prove the next Lemma.
+
+\begin{lemma}
+\label{proof:scan}
+Consider a scan operation $op$ that acquires version $v$ as its read point. For each key $k$ in the range of the scan, $op$ returns the value of the put operation writing to $k$ that is linearized last before \lp{op}.
+\end{lemma}
+
+The definition of the linearization points of scans and get operations imply that these operations are linearized within their execution intervals.
+Condition~\ref{proof:put:lp1} of Lemma~\ref{proof:put} implies that each put operation is linearized within its execution interval. Lemma~\ref{proof:get} implies that get operations satisfy their sequential specification, and Lemma~\ref{proof:scan} implies that scans satisfy their sequential specification. Hence we conclude:
+
+\begin{theorem}
+{\kiwi} is linearizable.
+\end{theorem}
+
+
+\subsection{Progress}
+
+In Appendix~\ref{app:proof:progress} we prove that {\kiwi} gets and scans are \emph{wait-free}, namely, in any execution, the operation \emph{itself} completes within a finite number of steps by its invoking thread. The proof simply shows that the number of iterations is finite in the loops in these operations. We further prove that {\kiwi} put operations are \emph{lock-free}, namely, in any execution of the operation \emph{some} operation completes within a finite number of steps by the invoking thread. The proof of this property is more subtle. We show that while a put operation can execute infinite number of rebalance and replace methods, some operation (and in fact many operations) completed allocation and made progress.
+

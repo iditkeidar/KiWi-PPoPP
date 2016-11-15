@@ -1,0 +1,194 @@
+
+\definecolor{blues1}{RGB}{198, 219, 239}
+\definecolor{blues2}{RGB}{158, 202, 225}
+\definecolor{blues3}{RGB}{107, 174, 214}
+\definecolor{blues4}{RGB}{49, 130, 189}
+\definecolor{blues5}{RGB}{8, 81, 156}
+\definecolor{antiquefuchsia}{rgb}{0.57, 0.36, 0.51}
+\definecolor{asparagus}{rgb}{0.53, 0.66, 0.42}
+\definecolor{darkspringgreen}{rgb}{0.09, 0.45, 0.27}
+\definecolor{darkslategray}{rgb}{0.18, 0.31, 0.31}
+\definecolor{coralred}{rgb}{1.0, 0.25, 0.25}
+
+\pgfplotsset{mystyle/.style={%
+        width=0.35\textwidth,
+        xmin=1,xmax=32,
+        enlargelimits=true,
+	ymajorgrids=true,
+        grid=major,
+        grid style={dashed, gray!30},
+        ylabel style={align=center, font=\small},
+        xlabel style={align=center, font=\small},
+        xtick={2,4,8,16,32}, 
+         x tick label style={font=\tiny},
+         y tick label style={font=\tiny},
+        scaled y ticks=base 10:-6,
+        ytick scale label code/.code={},
+        title style={font=\small},
+      	yticklabel={\pgfmathprintnumber{\tick}}
+}}
+
+\pgfplotsset{rangestyle/.style={%
+        width=0.35\textwidth,
+        enlargelimits=true,
+	ymajorgrids=true,
+        grid=major,
+        grid style={dashed, gray!30},
+        ylabel style={align=center, font=\small},
+        xlabel style={align=center, font=\small},
+        xticklabels={2, 8, 32, 128, 512, 2K, 8K, 32K},
+        xtick={100,120,144,172,207,249,299,358},
+        scaled y ticks=base 10:-6,
+        ytick scale label code/.code={},
+        x axis label/.style={font=\tiny},
+        x tick label style={font=\tiny},
+        y tick label style={font=\tiny},
+        title style={font=\small},
+    	yticklabel={\pgfmathprintnumber{\tick}}
+}}
+
+\pgfplotsset{mystyle16/.style={%
+        width=0.35\textwidth,
+        xmin=1,xmax=16,
+        enlargelimits=true,
+	ymajorgrids=true,
+        grid=major,
+        grid style={dashed, gray!30},
+        ylabel style={align=center, font=\small},
+        xlabel style={align=center, font=\small},
+        xtick={1,2,4,8,16}, 
+         x tick label style={font=\tiny},
+         y tick label style={font=\tiny},
+        scaled y ticks=base 10:-6,
+        ytick scale label code/.code={},    
+        title style={font=\small},
+    	yticklabel={\pgfmathprintnumber{\tick}}
+}}
+
+\pgfplotsset{memstyle16/.style={%
+        width=0.35\textwidth,
+        xmin=1,xmax=16,
+        ymin=0,ymax=120,
+        enlargelimits=true,
+	ymajorgrids=true,
+        grid=major,
+        grid style={dashed, gray!30},
+        ylabel style={align=center, font=\small},
+        xlabel style={align=center, font=\small},
+        xtick={1,2,4,8,16}, 
+         x tick label style={font=\tiny},
+         y tick label style={font=\tiny},
+%        scaled y ticks=base 10:-6,
+        ytick scale label code/.code={},    
+        title style={font=\small},
+    	yticklabel={\pgfmathprintnumber{\tick}}
+}}
+
+\pgfplotsset{chunksStyle/.style={%
+        width=0.31\textwidth,
+        xmin=1,xmax=55,
+        enlargelimits=true,
+	ymajorgrids=true,
+        ylabel style={align=center},
+        ytick scale label code/.code={},
+       scaled x ticks=base 10:-1,
+       scaled y ticks=base 10:-3,
+       xtick scale label code/.code={},
+       yticklabel={\pgfmathprintnumber{\tick}}
+}}
+
+\pgfplotsset{chunksUtilStyle/.style={%
+        width=0.31\textwidth,
+        xmin=1,xmax=55,
+        enlargelimits=true,
+	ymajorgrids=true,
+        ylabel style={align=center},
+       scaled y ticks=base 10:-3,
+       ytick scale label code/.code={},
+       scaled x ticks=base 10:-1,
+       xtick scale label code/.code={},
+       yticklabel={\pgfmathprintnumber{\tick}}
+}}
+
+\pgfplotsset{chunkLegendStyle/.style={%
+	   %width=0.35\textwidth,
+      % legend columns=-1,
+	 legend columns=4,
+	  legend entries={total, sorted , duplicates, nulls},
+	  legend style={at={(1, 0)}, anchor=north east, font=\tiny},
+	   legend to name=chunksDropHalfLegend,	  
+}}
+
+\pgfplotsset{chunkCountLegendStyle/.style={%
+	   %width=0.35\textwidth,
+      % legend columns=-1,
+      	legend columns=2,
+	legend entries={random, drop-half},
+	legend style={font=\tiny},
+	legend to name=chunksLegend,
+}}
+
+
+\pgfplotsset{sPut/.style={%
+	   %width=0.35\textwidth,
+       legend columns=-1,
+	   legend entries={\kiwi, \kary ,\skiplist, \snaptree},
+	   legend to name=sPutLegend,
+}}
+
+\pgfplotsset{putScan/.style={%
+	   %width=0.35\textwidth,
+       legend columns=-1,
+	   legend entries={\kiwi, \kary ,\skiplist, \snaptree},
+	   legend to name=putScanLegend,
+}}
+
+\pgfplotsset{scansOnly/.style={%
+	   %width=0.35\textwidth,
+       legend columns=-1,
+	   legend entries={\kiwi, \kary, \skiplist (non-atomic), \snaptree},
+	   legend to name=scansOnlyLegend,
+}}
+
+\pgfplotsset{unbalanced/.style={%
+	   %width=0.35\textwidth,
+       legend columns=-1,
+	   legend entries={\kiwi, \kary ,\skiplist, \snaptree},
+	   legend to name=singleKeyOpsLegend,
+}}
+
+
+\pgfplotsset{balanced/.style={%
+	   %width=0.35\textwidth,
+       legend columns=-1,
+	   legend entries={\autoTreap, \danaAVL,\snaptree, \friendly,  \stmTreap,
+	   \domTreap, \optAutoTreap}, legend to name=balancedLegened,
+}}
+
+\pgfplotsset{skiplist/.style={%
+	   width=\textwidth,
+       ymin=0,ymax=2800000,
+       xtick={2,4,8,16,32}, 
+       legend columns=-1,
+	   legend entries={\autoSkiplist, \kary , \skiplist (not atomic), \stmSkiplist,
+	   \domSkiplist}, legend to name=skiplistLegened,
+}}
+
+\pgfplotsset{skiplist1000/.style={%
+	   width=\textwidth,
+       ymin=0,ymax=150000,
+       scaled y ticks=base 10:-3,
+       xtick={2,4,8,16,32}, 
+       legend columns=-1,
+	   legend entries={\autoSkiplist, \kary, \skiplist (not atomic), \stmSkiplist,
+	   \domSkiplist}, legend to name=skiplistLegened1000,
+}}
+
+\pgfplotsset{skiplistUpdate/.style={%
+	   width=0.35\textwidth,
+       ymin=0,ymax=5500000,
+       xtick={1,2,4,8,16,32}, 
+       legend columns=-1,
+	   legend entries={\autoSkiplist, \kary , \skiplist (not atomic), \stmSkiplist,
+	   \domSkiplist}, legend to name=skiplistLegenedUpdate,
+}}

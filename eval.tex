@@ -1,0 +1,107 @@
+\section{Evaluation}
+\label{sec:eval}
+
+\subsection{Setup}
+
+\begin{figure*}
+\begin{center}
+\input{plots/basics}
+\end{center}
+\caption{Throughput scalability with uniform workloads. (a) Get operations, (b) Put operations, and (c) Scan operations. }
+\label{evaluation:results:getputscan}
+\end{figure*}
+
+\begin{figure*}
+\begin{center}
+\input{plots/scans}
+\end{center}
+\caption{Throughput scalability with concurrent scans and puts. (a,b) Scan operations. (c,d) Put operations. }
+\label{evaluation:results:scan}
+\end{figure*}
+
+{\bf Implementation.} We implement {\kiwi} in Java, using Doug Lea's concurrent skip-list 
+implementation~\cite{JavaConcurrentSkipList} for the index with added locks to support conditional updates. 
+The code makes extensive use of efficient 
+array copy methods~\cite{JavaArrayCopy}. {\kiwi}'s chunk size is set to 1024. 
+
+The rebalance policy is tuned as follows:
+$\code{checkRebalance}$  invokes rebalance with probability $0.15$ whenever
+ the batched prefix consists of less than $0.625$ of the linked list. Rebalance 
+engages the next chunk whenever engaging it will reduce the number of chunks in the list. 
+
+\textbf{Methodology.}
+We leverage the popular {\em synchrobench}  microbenchmark~\cite{Gramoli2015}
+to exercise a variety of workloads. The hardware platform %is a high-performance server, 
+features four Intel Xeon E5-4650 8-core CPUs. %(i.e., 32 hardware threads overall). %hyperthreading disabled). 
+Every experiment starts with 20 seconds of {\em warmup} -- inserts
+and deletes of random keys -- to let the HotSpot compiler optimizations take effect. 
+It then runs 10  iterations, 5 seconds each, and averages the results. An iteration fills the map with 1M random (integer, integer) pairs, 
+then exercises some workload. %scenario characterized by the selection of API's, their parameters, and degree of parallelism. 
+
+\textbf{Competition.}
+We compare {\kiwi} to Java implementations of three concurrent KV-maps: (1) the traditional 
+skip-list~\cite{JavaConcurrentSkipList} which does not provide linearizable scan semantics, 
+(2) {\kary}~\cite{BrownA12}\footnote{\small{\url{http://www.cs.toronto.edu/~tabrown/kstrq/LockFreeKSTRQ.java}}.}, 
+and (3) {\snaptree}\cite{BronsonCCO2010}\footnote{\small{\url{https://github.com/nbronson/snaptree}}.}. 
+%The implementations of {\kary} and {\snaptree} are available online. 
+For {\kary}, we use the optimal configuration described in~\cite{BrownA12} with $k=64$. 
+
+\subsection{Results}
+
+
+\begin{figure}
+\begin{center}
+\input{plots/mem-scans-puts}
+\end{center}
+\caption{RAM footprint with concurrent scans and puts. }
+\label{evaluation:results:mem}
+\end{figure}
+
+\textbf{Basic scenarios: get, put, and scan.} 
+We first focus on three simple workloads: 
+(1) get-only (random reads), 
+(2) put-only (random writes, half inserts/updates and half deletes), and 
+(3) scan-only (sequential reads of 32K keys, each starting from a random lower bound).  
+%The keys that define the operations are selected uniformly at random. 
+
+Figure~\ref{evaluation:results:getputscan} depicts throughput scalability with the number of worker threads. 
+In get-only scenarios (Figure~\ref{evaluation:results:getputscan}(a)), {\kiwi} outperforms the other 
+algorithms by 1.25x to 2.5x. We explain this by the NUMA- and cache-friendly locality of access in its intra-chunk binary search. 
+Under put-only workloads (Figure~\ref{evaluation:results:getputscan}(b)), it also performs well, thanks to avoiding version
+manipulation. {\snaptree}, which is optimized for random writes, is approximately $10\%$ faster than {\kiwi}
+with 32 threads. Note that in general, {\kiwi}'s gets are faster than its puts because the latter occasionally incur rebalancing. 
+
+Finally, {\kiwi} excels in scan performance (Figure~\ref{evaluation:results:getputscan}(c)). 
+For example, with 32 threads, it exceeds its closest competitor, {\kary}, by over $40\%$. 
+Here too, {\kiwi}'s advantage stems from high locality of access while scanning big chunks. 
+
+\textbf{Concurrent scans and puts.}
+We now turn to the scenario that combines massive analytics (scan operations) with 
+real-time updates (put operations). This is the primary use case that motivated 
+the design principles behind {\kiwi}. Half of the threads perform scans, whereas 
+the second half performs puts. 
+
+Figure~\ref{evaluation:results:scan}(a) depicts scan throughput scalability with the number of threads
+while scanning ranges of 32K keys. Figure~\ref{evaluation:results:scan}(b) depicts the throughput for 16 scan 
+threads with varying range sizes. Note that for long scans, {\kary}'s performance deteriorates under contention. 
+This happens because {\kary} restarts the scan every time a put conflicts with it -- i.e., puts make progress 
+but scans get starved. For large ranges, {\snaptree} has the second-fastest scans because it shared-locks 
+the scanned ranges in advance and iterates unobstructed. However, this comes at the expense of puts, 
+since such locking starves concurrent updates. Figures~\ref{evaluation:results:scan}(c) 
+and~\ref{evaluation:results:scan}(d) illustrate this phenomenon. 
+
+We study the memory footprints of the solutions in this scenario. We focus on 32-key scans -- a setting 
+in which the throughput achieved by all the algorithms except {\snaptree} is similar.  
+Figure~\ref{evaluation:results:mem}(e) depicts the JVM memory-in-use metric immediately after a full 
+garbage collection that cleans up all the unused objects, averaged across 50 data points. 
+{\kiwi} is on par with {\kary} and the Java skiplist except with maximal parallelism (16 put threads), 
+in which it consumes 20\% more RAM due to intensive version management.  
+
+%Summing up, contrast to its competitors that are tailored for certain workloads, 
+%{\kiwi} serves both scans and puts equally well, echoing the theoretical results.  
+
+\textbf{Ordered workload.} 
+As a balanced data structure, {\kiwi} provides good performance on non-random workloads. 
+We experiment with a monotonically ordered stream of keys. {\kiwi} achieves a throughput 
+similar to the previous experiments. In contrast, {\kary}'s maximal put throughput in this setting is 
+730 times slower -- approximately $13.6$K operations/sec vs {\kiwi}'s $9.98$M. 

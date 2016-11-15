@@ -1,0 +1,279 @@
+\section{{\kiwi} Algorithm}
+\label{sec:algo}
+We now present the details of the {\kiwi} algorithm.
+Section~\ref{sec:algo:putget} presents the basic API supporting only get and put operations. Then Section~\ref{sec:algo:scan} extends the functionality with scans, this extension builds on multi-versioning. The auxiliary pseudo-code (in Appendix~\ref{app:code}) is written in the context of the full API and therefore handles versions. All version references and accesses (marked with  blue color bold fonts) can be ignored while reading Section~\ref{sec:algo:putget}.
+
+
+\subsection{Put and Get Operations}
+\label{sec:algo:putget}
+%This section describes the basic algorithm of put and get operations, as well as the structural rebalancing building block. 
+
+%%% index
+We assume the index is a linearizable key-chunk map data structure supporting wait-free \texttt{find} method and lock-free \texttt{replace} method.
+Many list-based data structure (such as skip-list and $B^+$-tree) implementations~\cite{Fraser04, HerlihyLLS2007, BraginskyP2012,ArbelA2014,DrachslerVY2014} can serve as basis for supporting this functionality. 
+\begin{description}
+\setlength{\itemsep}{0pt}
+\setlength{\parskip}{0pt}
+\item[\texttt{find($k$)}:] returns the maximal chunk with minimal-key smaller or equal to $k$; 
+\item[\texttt{replace($oldChunks$, $newChunks$)}:] replaces the mapping to $oldChunks$ with mapping to $newChunks$; ensures each new chunk is added to the index at most once\footnote{Can be supported by augmenting the next pointer of each key in the ``leafs''-list with \emph{aba counters}, as in \cite{BraginskyP2012}. 
+
+\noindent 
+ABA problem: thread t reads value
+A from l (next pointer in our case), then other thread changes l to B and then back to A, later t successfuly
+applies CAS on l whereas it should have failed.
+}.
+\end{description}
+
+
+
+%%% get operation
+{\kiwi} \emph{get} operation (see Figure~\ref{fig:get}) returns the value associated with the passed key, $k$, or $\bot$ if $k$ is not in the map.
+The operation uses the index and then traverses the chunk list to find the chunk spanning $k$.
+Within this chunk the operation seeks $k$ in the cell linked-list. It starts with a binary search in the batched prefix at the head of the list. Once the closest key is found in the prefix the search follows the links in the cell list to find $k$, and returns the value associated with it. 
+
+\begin{figure*}
+\codesize
+	\begin{center}
+	\begin{subfigure}[b]{.47\textwidth}
+		\begin{algorithmic}[1]{}
+		\Function{kiwi::get}{Key key}
+		\State curr = findChunk(key) 
+		\State return curr.find(key)
+		\EndFunction
+		\vspace{2mm}
+		\Function{kiwi::findChunk}{Key key}
+		\State curr = index.find(key) \Comment{curr minimal key $\leq$ key}
+		\State next = curr.next()
+		\State \textbf{while} next$\neq$null and next.getMinKey() $\leq$ key \textbf{do} 
+		\State \ \  curr = next
+		\State \ \ next = curr.next()
+		\State return curr
+		\EndFunction
+		\end{algorithmic}
+		\caption{get
+%First find a chunk in the index, then traverses the chunk list to find the maximal chunk with minimal-key less or equal to $key$. Finally, return the value associated with the key in the chunk or $\bot$ if $key$ is not in the map.
+} \label{fig:get}
+	\end{subfigure}
+\hspace{0.03\textwidth}
+	\begin{subfigure}[b]{.47\textwidth}
+		\begin{algorithmic}[1]{}
+		\Function{kiwi::put}{Key key, Value val}
+		\State \textbf{while} true \textbf{do}
+		\State \ \ chunk = findChunk(key) 
+		\State \ \ \textbf{if} chunk is \textsc{infant} \textbf{then} \Comment{incomplete rebalance}
+		\State \ \ \ \ rebalance(chunk.getParent()) \Comment{help complete}
+		\State \ \ cell = chunk.allocate(key, val) 
+		\State \ \ \textbf{if} cell $\neq$ null \textbf{then} 
+		\State \ \ \ \ chunk.insertCell(cell) \Comment{insert cell into cell list}
+		\State \ \ \ \ return
+		\State \ \ rebalance(chunk) \Comment{allocation failed}
+		\EndFunction
+		\end{algorithmic}
+		\caption{put 
+%Find the chunk spanning the key; allocate space for the new cell and insert it into the cell list. If allocation failed, the chunk is \emph{frozen} or is still \emph{infant} help complete the rebalance operation. While the put is ongoing it is published in the pending put array so it can be observed by other get and rebalance operations.
+} \label{fig:put}
+	\end{subfigure}
+	\end{center}
+	\caption{{\bf {\kiwi} get and put operations}.
+			\label{fig:getput}}
+\end{figure*}
+
+%%% put
+{\kiwi} \emph{put} operation (see Figure~\ref{fig:put}) finds the chunk $c$ which spans the passed key similar to get operation. If $c$ cannot yet absorb the update (\textsc{infant} chunk), the put helps complete the rebalance operation on $c$'s parent.
+Then the put allocates a key-value cell in the chunk to store the new data by increasing the counters pointing to the next free space in the underlying arrays.  
+If the allocation is successful the put is guaranteed to finish without restarting -- the operation inserts the cell into the cell list and completes. If the allocation fails then either the chunk is full or the chunk is in the process of being rebalanced.  Either way, after helping rebalance the chunk the operation restarts.
+ 
+The cell linked-list stores only one cell per key. Therefore, when inserting a cell into the cell list there are three options: (1) the key already exists in the linked-list and has the most recent value -- the operation does nothing (seen as it was overridden by the more recent put operation); (2) the key already exists in the linked-list but with an older value -- the value is updated in-place; (3) the key is absent -- the cell is linked into the list at the right position. 
+
+\remove{
+\begin{figure}
+	\begin{center}
+		\begin{algorithmic}[1]{}
+		\Function{kiwi::put}{Key key, Value val}
+		\State \textbf{while} true \textbf{do}
+		\State \ \ chunk = findChunk(key) 
+		\State \ \ \textbf{if} chunk is \textsc{infant} \textbf{then} \Comment{incomplete rebalance}
+		\State \ \ \ \ rebalance(chunk.getParent()) \Comment{help complete}
+		\State \ \ cell = chunk.allocate(key, val) 
+		\State \ \ \textbf{if} cell $\neq$ null \textbf{then} 
+		\State \ \ \ \ chunk.insertCell(cell) \Comment{insert cell into cell list}
+		\State \ \ \ \ return
+		\State \ \ rebalance(chunk) \Comment{allocation failed}
+		\EndFunction
+		\end{algorithmic}
+		\caption{{\kiwi} put operation. 
+%Find the chunk spanning the key; allocate space for the new cell and insert it into the cell list. If allocation failed, the chunk is \emph{frozen} or is still \emph{infant} help complete the rebalance operation. While the put is ongoing it is published in the pending put array so it can be observed by other get and rebalance operations.
+} \label{fig:put}
+	\end{center}
+\end{figure}
+}
+
+%%% rebalance operation
+A \emph{rebalance} operation (see Figure~\ref{fig:rebalance}) is responsible for keeping the chunks evenly loaded, and the index well balanced. It gets a chunk as an input, it tries to engage and rebalance this chunk's ``neighborhood''; the result is a list of balanced chunks. Split and merge operations are special cases of a rebalance operation: a split engages a single chunk and outputs a list of two chunks, a merge engages two consecutive chunks and outputs a single chunk. Appendix~\ref{app:code} further elaborates this algorithm.
+
+Once a chunk is engaged in a rebalance it cannot be engaged with another rebalance operation. 
+An important invariant is that balanced chunks store the same data as the engaged frozen chunks, only that it is more evenly distributed between the chunks and also stored in consecutive locations in the batch prefix (which later allows utilizing binary search). All undeleted non-obsolete cells are copied by their order in the cell lists into new chunks; each chunk is written until it is half full. 
+
+To complete the rebalance operation the engaged chunks are replaced with the new balanced chunks.
+If the link from chunk $c$, previous to the first engaged chunk, is marked as deleted then $c$ is engaged in another rebalance and the current rebalance operation recursively helps it to complete. There can be a scenario in which the current operation helps other rebalance operation infinitely. While it means that for each such helping round many put operations have made progress, this implies that the rebalance operation, and therefore the put operation is lock-free but not wait-free.  
+
+%%% pending array - why it is needed and how it is used
+A data may be lost if put operations continue to add cells to a chunk while a rebalance operation is traversing the cell list and copies its content to a new chunk. 
+We remedy this problem by tracking put operations  
+in a designated \emph{pending put array} (PPA), with a per thread entry. A put is published in the chunk's PPA so it becomes visible to other get and rebalance operations; when the operation completes, the entry is cleared. A rebalance operation \emph{freezes} all entries in the pending set thereby blocking any additional cells from being inserted into the chunk's cell list. 
+The rebalance operation helps to complete all put operations that are already published in the PPA. Get operations also go through the PPA to find the most recent value, specifically the value which was allocated most recently. 
+
+%For lack of space, the 
+Auxiliary code for get, put and rebalance appear in Appendix~\ref{app:code} in Figure~\ref{fig:aux}.%Figures~\ref{fig:find},~\ref{fig:allocate} and~\ref{fig:freeze}, respectively.
+
+
+%\eshcar{Add a paragraph about rebalance triggers}
+
+\subsection{Supporting Scans}
+\label{sec:algo:scan}
+
+%describe how we support versions - changes in put/get/rebalance operations. scan operations. pseudo-code.
+We implement linearizable scans using the common approach of multi-versioning: each key-value cell is stored in the chunk together with a unique, monotonically increasing, \emph{version}. The versions are internal, and are not exposed to {\kiwi} users. 
+%To support multi-versioning {\kiwi} maintains a global counter, \emph{globalVersion}. Scans increase the counter; put operations read the counter and install key-version-value tuples in the chunks cells. 
+Figures~\ref{fig:find},~\ref{fig:allocate} in Appendix~\ref{app:code} highlight the changes required to support versions.
+
+This means each chunk potentially holds many versions for a given key. Following standard practice old versions are not removed from the chunk i.e., they exist at least until the chunk is discarded following a rebalance operation. Obsolete versions are removed while rebalancing the chunk once they are no longer needed for any scan. In other words, for every key and every scan, the latest version of the key that does not exceed the scan's read point is kept.
+
+A scan operation (see Figure~\ref{fig:scan}) gets as input a minimum key and a maximum key. It begins by acquiring a \emph{read point}; this is done by atomically incrementing and reading the global version counter. Then the scan iterates over the chunk list starting from the chunk which spans the minimum key. At each chunk, the operation iterates over the pending list and the cell list, and filters out cells that do not belong to it: for each key k in the range, the scan filters out cells that have higher version than the scan read point, or are older than the latest version (of key k) that does not exceed the scan read point. As in the basic algorithm, we break ties by comparing the locations of the values in the chunk; the value that was allocated later is considered more recent.
+
+To consolidate with the rebalancing operation, the scan installs its read point in a global list that captures all \emph{active scans}. Rebalance operations query the list to identify the maximal version before which versions can be removed. The scan cannot increase the global counter and its entry in the scan array atomically. Therefore, to avoid a potential race between installing a scan read point and it being observed by a rebalance operation, we employ \emph{helping}. The scan publishes an \emph{empty entry} in the scan array and then tries to set it with the version it acquired. Concurrent rebalance operations help scans install a version in empty entries; 
+monotonically increasing \emph{aba} counters
+%\footnote{ABA problem: thread t reads value A (empty entry in our case) from l, then other thread changes l to B and then back to A, later t successfuly applies CAS on l whereas it should have failed.} 
+ensure a rebalance only helps scans it must help.
+The version that is written first is the one that the scan uses.
+
+
+\begin{figure*}
+\codesize
+	\begin{center}
+	\begin{subfigure}[t]{.48\textwidth}
+		\begin{algorithmic}[1]{}
+		\Function{kiwi::rebalance}{Chunk chunk}
+		\State rebalanceObj = buildRebalanceObj(chunk)
+		\State engaged = rebalanceObj.engageChunks()
+		\State \textbf{forall} engChunk in engaged \textbf{do}
+		\State \ \ engChunk.freeze()
+		\State engaged.last().markDeleted() 
+		\State balanced = chunk.getRebalanceObj().balance()
+		\State replace(engaged, balanced)
+		\State \textbf{for all} chunk in balanced \textbf{do}
+		\State \ \ chunk.makeNonInfant()
+		\EndFunction
+		\vspace{2mm}
+		\Function{kiwi::replace}{List engaged, List balanced}
+		\State next = engaged.last().next()
+%		\State \textbf{if} balanced.isNotEmpty() \textbf{then}
+%		\Statex \ \  \Comment{connect balanced tail}
+%		\State \ \ CAS(balanced.last().nextPtr, $\langle null,0\rangle$, $\langle next,0\rangle$)
+		\State firstEng = engaged.first()
+		\State \textbf{if} balanced.isNotEmpty() \textbf{then}
+		\State \ \ next = balanced.first()
+		\State \textbf{while} true \textbf{do}
+		\State \ \ prev = findPrevInChunkList(firstEng)
+		\State \ \ \textbf{if} prev == $\bot$ \textbf{then} break \Comment{done replacement}
+		\State \ \ \textbf{if} prev.nextPtr.mark$\neq 0$ \textbf{then} \Comment{marked deleted}
+		\State \ \ \ \ rebalance(prev) \Comment{help rebalance prev}
+		\State \ \ \textbf{else}  \Comment{connect balanced head}
+		\State \ \ \ \ CAS(prev.nextPtr, $\langle firstEng,0\rangle$, $\langle next,0\rangle$) 
+		\State index.replace(engaged, balanced) 
+		\EndFunction
+		\end{algorithmic}
+		\caption{rebalance
+%Done in 4 stages: (1)~engage neighborhood, (2)~freeze all engaged chunks, (3)~copy undeleted cells to balanced chunks, (4)~replace engaged chunks with balanced chunks both in chunk list and in index. Finally, to make the balanced chunks available for new updates they are marked as non-infant.
+} \label{fig:rebalance}
+	\end{subfigure}
+\hspace{0.03\textwidth}
+	\begin{subfigure}[t]{.46\textwidth}
+		\begin{algorithmic}[1]{}
+		\Function{kiwi::scan}{Key minKey, Key maxKey}
+		\State aba = s[\textit{tid}].aba
+		\State s[\textit{tid}] = $\langle EMPTY,aba\rangle$ \Comment{publish in scan array}
+		\State ver = FAI(globalVersion) \Comment{acquire read point}
+		\State CAS(s[\textit{tid}], $\langle EMPTY,aba\rangle$, $\langle ver,aba\rangle$) 
+		\State ver = s[\textit{tid}]
+		\State chunk = findChunk(key) 
+%		\Statex \Comment{finds first cell with key $\geq$ minKey and version $\leq$ ver}
+		\State cell = chunk.findCell(minKey, ver) 
+		\State key = cell.key
+		\State \textbf{while} key $\leq$ maxKey \textbf{do} 
+		\State \ \ pending = chunk.findInPending(key,maxKey)  
+		\State \ \ \textbf{while} key $\neq$ null and key $\leq$ maxKey \textbf{do}
+		\State \ \ \ \ pos = $\max$(cell.val, pending.get(key))
+		\State \ \ \ \ res.append(chunk.v[pos]) \Comment{build result}
+		\State \ \ \ \ cell = chunk.findNextCell(cell, ver)
+		\State \ \ \ \ \textbf{if} cell == null \textbf{then} key = null
+		\State \ \ \ \ \textbf{else} key = cell.key %\Comment{end of cell list loop}
+		\Statex \Comment{end of cell list loop in chunk}
+		\State \ \ chunk = chunk.next()
+		\State \ \ cell = chunk.firstCell()
+		\State \ \ key = cell.key \Comment{end of chunks list loop}
+%		\Statex \Comment{end of chunks list loop}
+		\State s[\textit{tid}] = $\langle null,aba+1\rangle$ \Comment{unpublish scan}
+		\State return res
+		\EndFunction
+		\end{algorithmic}
+		\caption{scan - v is the chunk's values array, s is the global scan array, \textit{tid} is the thread id
+%The scan acquires a read point, and starts traversing the range ($minKey$-$maxKey$) chunk by chunk. For each key in the range, collects the most recent value before the read point. Finds the values by seeking both pending put array and the cell list, similar to get. Concurrent rebalance operations keep relevant versions, as the read point is visible in the scan array.
+} \label{fig:scan}
+	\end{subfigure}
+	\end{center}
+	\caption{{\bf {\kiwi} rebalance and scan operations}.
+			\label{fig:rebalscan}}
+\end{figure*}
+
+\remove{
+\begin{figure}[t]
+	\begin{center}
+		\begin{algorithmic}[1]{}
+		\Function{kiwi::scan}{Key minKey, Key maxKey}
+		\State s[\textit{tid}] = EMPTY \Comment{publish in scan array}
+		\State ver = FAI(globalVersion)
+		\State CAS(s[\textit{tid}], EMPTY, ver) \Comment{agree on read point}
+		\State ver = s[\textit{tid}]
+		\State chunk = findChunk(key) 
+		\State next = chunk.next()
+%		\Statex \Comment{finds first cell with key $\geq$ minKey and version $\leq$ ver}
+		\State cell = chunk.findCell(minKey, ver) 
+		\State key = cell.key
+		\State \textbf{while} key $\leq$ maxKey \textbf{do} 
+		\State \ \ pending = chunk.findInPending(key,maxKey)  
+		\State \ \ \textbf{while} key $\neq$ null and key $\leq$ maxKey \textbf{do}
+		\State \ \ \ \ pos = $\max$(cell.val, pending.get(key))
+		\State \ \ \ \ res.append(v[pos]) \Comment{build result}
+		\State \ \ \ \ cell = chunk.findNextCell(cell, ver)
+		\State \ \ \ \ \textbf{if} cell == null \textbf{then} key = null
+		\State \ \ \ \ \textbf{else} key = cell.key
+		\Statex \Comment{end of cell list loop in chunk}
+		\State \ \ chunk = chunk.next()
+		\State \ \ cell = chunk.firstCell()
+		\State \ \ key = cell.key 
+		\Statex \Comment{end of chunks list loop}
+		\State s[\textit{tid}] = null \Comment{unpublish scan}
+		\State return res
+		\EndFunction
+		\end{algorithmic}
+		\caption{{\kiwi} scan operation. 
+%The scan acquires a read point, and starts traversing the range ($minKey$-$maxKey$) chunk by chunk. For each key in the range, collects the most recent value before the read point. Finds the values by seeking both pending put array and the cell list, similar to get. Concurrent rebalance operations keep relevant versions, as the read point is visible in the scan array.
+} \label{fig:scan}
+	\end{center}
+\end{figure}
+}
+ 
+\remove{
+We assume chunk index is a linearizable map data structure supporting the lock-free \texttt{put} and \texttt{delete} methods and the wait-free \texttt{find} method, as for example in ~\cite{HerlihyLLS2007}. Additionally, we assume lock-free implementation of \texttt{replace} and \texttt{remove} methods, as can be found in the
+\texttt{ConcurrentSkipListMap}, written by Doug Lea based on work by Fraser and Harris \cite{Fraser04}. Finally, the chunk index is required to support \texttt{loadLink} and \texttt{storeConditional} methods as explained below. Those methods can be added to index using version numbers on the key's next pointers as it was done in \cite{BraginskyP2012}. Hereby, we specify the required interface of the key to chunk index: 
+\begin{description}
+\item[\texttt{put($k$, chunk)}:] adds a mapping from $k$ to the \texttt{chunk}; 
+\item[\texttt{delete($k$)}:] removes the key $k$; 
+\item[\texttt{find($k$)}:] returns the chunk with minimal key smaller or equal to $k$; 
+\item[\texttt{replace($k$, oldChunk, newChunk)}:] if the mapping from $k$ to the \texttt{oldChunk} exists, it is atomically replaced with a mapping from $k$ to the \texttt{newChunk};
+\item[\texttt{remove($k$, chunk)}:] if the mapping from $k$ to the \texttt{chunk} exists, the key $k$ is atomically removed; 
+\item[\texttt{mark loadLink($k$)}:] returns a mark, according to which it will be possible to distinguish whether any key was inserted in between $k$ and a key next to $k$ after last \texttt{loadLink} call;   
+\item[\texttt{storeConditional($k$, chunk, mark)}:] if no key was inserted in between $k$ and a key next to $k$ since last \texttt{loadLink}, the mapping from $k$ to the \texttt{chunk} is atomically added
+\end{description}
+}
