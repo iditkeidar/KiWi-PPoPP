@@ -45,7 +45,7 @@ are ordered (lexicographically) according to their $\langle v, j \rangle$  pairs
 $\langle v, i \rangle$ is published in their PPA in phase 2 of the put, and \code{$C$.k[$i$].valPtr$=j$}; this pair is called the \emph{full version} of the put.
 We note that in each chunk, the full versions are unique, because threads obtain $j$ using F\&A.
 First,  $i$ is published in \code{ppa[t].idx} (line~\ref{l:put-version}) and then
-the location-version pair obtains its final value by a successful CAS of \code{ppa[t].ver}, either by the put (line~\ref{l:put-cas-version}) or by a helping thread (line~\ref {l:get-help} or~\ref{l:scan-help}). 
+the location-version pair obtains its final value by a successful CAS of \code{ppa[t].ver}, either by the put (line~\ref{l:put-cas-version}) or by a helping thread (line~\ref {l:get-help}). 
 We refer to 
 a step publishing $i$ in \code{ppa[t].idx} and to
 the step executing the successful CAS  as the put's \emph{publish time} and the \emph{full version assignment time}, resp., 

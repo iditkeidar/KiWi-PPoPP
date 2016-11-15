@@ -1,13 +1,11 @@
 \section{Introduction}
 \label{sec:intro}
 
-%\subsection{Motivation and goal}
 {\bf{Motivation and goal.}} The ordered \emph{key-value} (KV) map abstraction has been recognized as a popular programming interface
 since the dawn of computer science, and remains an essential component of virtually any computing system today.
 It is not surprising, therefore, that with the advent of multi-core computing,  many scalable concurrent
 implementations have emerged,
 e.g.,~\cite{JavaConcurrentSkipList,LinkedListBP,BraginskyP2012,Hendler04,Kogan12,NatarajanM2014}.
-%\todo{Add more citations of concurrent key-value stores, including Maya's paper and everything we cite there, BW-Trees.}
 
 KV-maps have become centerpiece to web-scale data processing systems such as
 Google's F1~\cite{Shute2013}, which powers its AdWords
@@ -55,7 +53,7 @@ therefore restarting them in cases of conflicts is practically ``good enough'' -
 restarts are rare, and when they do occur, little work is wasted. 
 Formally, \kiwi\  opts to provide \emph{wait-free} gets and scans and \emph{lock-free} put operations.
 
-%\subsection{Design principles}
+
 {\bf{Design principles.}}
 % Versions on-demand, managed by scans
 To support atomic wait-free scans, \kiwi\ employs multi-versioning~\cite{BHG:Book87}. But in contrast to the standard approach~\cite{mv-stm-chapter}, where each put creates a new version for the updated key, \kiwi\ only keeps old versions that are needed for ongoing scans, and otherwise overwrites the existing version. Moreover, version numbers are managed by scans rather than updates, and put operations may
@@ -86,7 +84,7 @@ chunk to allow for fast in-chunk binary search. The \kiwi\ algorithm is detailed
 and we discuss its correctness in Section~\ref{sec:proof}.
 % \todo{Consider saying we're the only data structure snapshot algorithm that has a formal proof, which is in the appendix.}
 
-%\subsection{Results}
+
 {\bf{Evaluation results.}}
 In Section~\ref{sec:eval} we benchmark \kiwi's Java implementation under multiple representative workloads.
 In the vast majority of  experiments, it significantly outperforms existing concurrent KV-maps that support scans.

@@ -160,7 +160,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 		\State locate target chunk $C$
 \label{l:put-prep}
 		\If{\codeF{checkRebalance($C$, \codeF{key, val}})}
-			\State  \Comment rebalance has completed the put  \label{l:put-rebalance0}
+			\Comment put completed by rebalance    \label{l:put-rebalance0}
 			\State return
 		\EndIf
 		\State \codeF{j} $\leftarrow$ F\&A($C$.\codeF{vCounter, val.size}) \Comment allocate place for value
@@ -261,7 +261,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 	\State return $\bot$
 	\EndProcedure	
 
-%	\algstore{kiwi} %% Uncomment to add another pseudocode figure
+	\algstore{kiwi} %% Uncomment to add another pseudocode figure
 	\end{algorithmic}
 	\end{multicols}
 	\caption{\kiwi\ operations -- pseudocode for thread \code{t}.}
@@ -422,26 +422,32 @@ stored in the chunk (see Algorithm~\ref{alg:chunk}).
 
 
 The \code{checkRebalance($C$)} procedure is given in Algorithm~\ref{alg:rebalance}. 
-It checks whether $C$ is immutable, and if so, helps the rebalance process that makes it immutable
+It checks whether $C$ is immutable, and if so, helps complete the process that makes it immutable
 ($C$'s parent in case $C$ is an infant, and $C$ in case it is frozen).
+The rebalance procedure consists of two functions, \codeF{rebalance} and \codeF{normalize}; in case
+the chunk's parent is helped only the latter is perfromed as explained below.
 In addition, if the chunk is full or if the rebalance policy chooses to do so, it also triggers rebalance on $C$.
-Note that
-put calls \code{checkRebalance} before incrementing \code{kCounter} and \code{vCounter} in order to avoid filling up infant chunks.
-The \code{reblance} procedure takes the put's key and value as parameters, and attempts to piggyback the put on the reblanace, i.e., insert the key and value to the newly created chunk. In case it fails, it returns false, in which case the put is restarted.
+Note that put calls \code{checkRebalance} before incrementing \code{kCounter} and \code{vCounter} in order to avoid filling up infant chunks.
+The \code{reblance} procedure takes the put's key and value as parameters, and attempts to piggyback the put on the reblanace, i.e., insert the key and value to the newly created chunk. In case it fails, it returns false, in which case the put is restarted. 
 
 \begin{algorithm}[tb]
 \codesize
 	\begin{algorithmic}[1]{}
-		\Procedure{checkRebalance}{$C$}
+		\algrestore{kiwi} %% Uncomment to add another pseudocode figure
+		\Procedure{checkRebalance}{$C$, key, val}
 		\If{\codeF{$C$.status = infant}} 
-			\If {$\neg$\codeF{rebalance($C$.parent, \codeF{key, val})}} \codeF{put(key, val)} \EndIf 
+			\State normalize($C$.parent)
+			\State \codeF{put(key, val)} 
 		\EndIf
 		\If{\codeF{$C$.vCounter} $\geq$ \codeF{$C$.v.size} $\vee$ \codeF{$C$.kCounter} $\geq$ \codeF{$C$.k.size} $\vee$ 
 			\State \codeF{$C$.status = frozen}  $ֿֿ\vee$ \codeF{policy($C$)} 
 			} 
-			\If {$\neg$\codeF{rebalance($C$, \codeF{key, val})}} \codeF{put(key, val)} \EndIf 
+			\State ok $\leftarrow$ \codeF{rebalance($C$, key, val)}
+			\State normalize($C$)
+			\If {$\neg$ok} \codeF{put(key, val)} \EndIf 
 		\EndIf
 		\EndProcedure
+		\algstore{kiwi} %% Uncomment to add another pseudocode figure
 	\end{algorithmic}
 \caption{The checkRebalance procedure.}
 \label{alg:check-rebalance}
@@ -481,30 +487,28 @@ If the first check of \code{checkRebalance()} decides to help rebalance a chunk'
 rebalance starts in stage $6$, since the chunk's reachability implies that stage $5$ is complete.
 In the other two cases, (a frozen chunk or a new trigger chunk), rebalance cycles through all seven stages.
 This is safe because all stages are idempotent, and ensures lock-freedom, namely, progress in case the original rebalance stalls.
+The first five stages are performend in the \codeF{rebalance} procedure, whereas the last two are performed in \codeF{normalize}.
 \inote{A pseudo-code for the rebalance process is given in Algorithm~\ref{alg:check-rebalance}.
 We now describe the stages in detail.}
 %
 For space limitations we omit the rebalance pseudocode; we now describe the seven stages.
 
-
-
-\begin{algorithm*}[tb]
+\begin{algorithm*}[th]
 \codesize
          \begin{multicols}{2}
 	\begin{algorithmic}[1]{}
-
-	\Procedure{rebalance}{$C$, key, val}	
+	\algrestore{kiwi}
+	\Procedure{rebalance}{$C$, put\_key, put\_val}	
 	\LineComment {\em 1. engage }
-	\State \codeF{ro} $\leftarrow$ new rebalance object
-	\State \codeF{ro.first} $\leftarrow$ \codeF{last} $\leftarrow C$
+	\State \codeF{ro} $\leftarrow$ new rebalance object, initially $\langle C, C.\codeF{next}, \bot \rangle$
+	\State \codeF{last} $\leftarrow C$
 	\State CAS($C$.\codeF{ro}, $\bot$, \codeF{ro})
 	\State \codeF{ro} $\leftarrow$ $C$.\codeF{ro}
-	\State CAS(\codeF{ro.next}, $\bot, C$\codeF{.next})
 	\While{ \codeF{ro.next} $\not=\bot$ }
 		\State \codeF{next} $\leftarrow$ \codeF{ro.next}
 		\If{\codeF{policy(next)}} \Comment try to engage next
 		 	\State CAS(\codeF{next.ro}, $\bot$, \codeF{ro}) 
-		 	\If{\codeF{next.ro = ro}} 
+		 	\If{\codeF{next.ro = ro}}  \Comment engaged next
 		 		\State CAS(\codeF{ro.next}, \codeF{next}, \codeF{next.next}) 
 		 		\State \codeF{last} $\leftarrow$  \codeF{next}
 			\Else 		 		
@@ -519,8 +523,8 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 	\LineComment {\em 2. freeze}
 	\State $C$.\codeF{status} $\leftarrow$ \codeF{frozen}
 			\ForAll {$c$ in $C$.\codeF{ppa}} 				
-				\State \codeF{idx} $\leftarrow$ $c$.\codeF{idx} 
-				\State CAS($c$, $\langle\bot$, \codeF{idx}$\rangle$, $\langle$\codeF{frozen, idx}$\rangle$)  
+				\State \codeF{idx} $\leftarrow c$.\codeF{idx} 
+				\State CAS($c$, $\langle\bot$, \codeF{idx}$\rangle, \langle$\codeF{frozen, idx}$\rangle$)  
 			\EndFor		
 
 	\LineComment {\em 3. pick minimal version}
@@ -534,13 +538,67 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 	\If{toHelp $\not=\emptyset$}
 		\State \codeF{ver} $ \leftarrow$ F\&I(GV)
 		\ForAll{$\langle$t, seq, from, to$\rangle \in$  \codeF{toHelp}}  
-				\State CAS(\codeF{psa[t]}, $\langle ?$,\codeF{seq,from,to}$\rangle$, $\langle$\codeF{ver,seq,from,to}$\rangle$)
+				\State CAS(\codeF{psa[t]}, $\langle$?,\codeF{seq,from,to}$\rangle, \langle$\codeF{ver,seq,from,to}$\rangle$)
 		\EndFor
 	\EndIf
 	\LineComment {\em 4. build}
+	\LineComment we assume the number of versions is much smaller than the chunk size
+	\State $C_f \leftarrow C_n \leftarrow$ new chunk  
+		\State \hspace{10mm} with \codeF{minKey}=$C$.\codeF{minKey}, \codeF{parent}=$C$, \codeF{status = infant} 
+	\ForAll{chunks $C_o$ from \codeF{ro.first} to \codeF{ro.last}}
+		\If{$C_o$.\codeF{minKey} $<$ \codeF{put\_key} $<$ $C_o$.\codeF{next.minKey}}   
+			\State  \codeF{toPut} $\leftarrow \{ \langle$\codeF{put\_key},GV, \codeF{put\_val}$\rangle \}$
+		\Else
+			\State \codeF{toPut} $\leftarrow \emptyset$
+		\EndIf
+		\ForAll{keys k in $C_o \cup $\codeF{toPut} in sorted order}
+			\If{$C_n$ is more than half full} 
+				\State $C_n$.\codeF{next} $\leftarrow$  new chunk 
+					\State \hspace{10mm} with 
+					\codeF{minKey}=$C$.\codeF{k}, \codeF{parent}=$C$, \codeF{status = infant} 
+				\State $C_n \leftarrow C_n.$\codeF{next}
+			\EndIf
+			\ForAll{versions $\langle$ ver, val $\rangle$ of k, in descending order}
+				\State insert $\langle$ k, ver, val $\rangle$ to $C_n$
+				\If{ver $<$ \codeF{minKey}} break \EndIf
+			\EndFor
+		\EndFor
+	\EndFor
 	\LineComment {\em 5. replace}
+	\State \codeF{ro.last.immutable} $\leftarrow$ true
+	\State $C_n$.\codeF{next} $\leftarrow$ \codeF{ro.last.next}
+	\State \codeF{pred} $\leftarrow$ $C$'s predecessor
+	\If{CAS(\codeF{pred.next+immutable}, $C$+false, $C_f$+false)} 
+		\State return true  \Comment insertion succeeded   \EndIf
+	\If{\codeF{pred.next.parent} = $C$} 
+		\State return false \Comment someone else's insertion succeeded  
+	\Else \Comment insertion failed, help predecessor and retry
+		\State rebalance(pred, $\bot, \bot$)
+		\State return rebalance($C$, put\_key, put\_val)
+	\EndIf 
+
+	\EndProcedure
+	
+	\Statex
+	
+	\Procedure{normalize}{$C$}	
+		
 	\LineComment {\em 6. update index}
+	\ForAll{chunks $c$ from $C_f$ to $C_n$}
+		\State load: \codeF{index.loadPrev($c$.minKey)}
+		\If {$\neg c$.\codeF{frozen}}
+			\If{$\neg$ \codeF{index.putConditional($c$.minKey, $c$)}}
+				goto load 
+			\EndIf 
+		\EndIf
+	\EndFor		
+	\ForAll{chunks $c$ from \codeF{ro.first} to \codeF{ro.last}}
+			\State \codeF{index.deleteConditional($c$.minKey, $c$)}
+	\EndFor
 	\LineComment {\em 7. normalize}	
+	\ForAll{chunks $c$ from $C_f$ to $C_n$}
+		$c$.\codeF{status $\leftarrow$ normal}
+	\EndFor		
 	\EndProcedure
 
 		\end{algorithmic}
@@ -623,7 +681,7 @@ Note that scan's CAS (line~\ref{l:scan-FiCAS})  might fail  in case it is helped
 either way, it uses the version written by some successful CAS (line~\ref{l:scan-version-end}).
 
 
-\paragraph{4. Creating new chunks.}
+\paragraph{4. Creating new chunks and completing the put.}
 
 The next stage creates new chunks to replace the engaged ones. It traverses the list of engaged chunks from \code{ro.first} to \code{ro.last}.
 In each chunk, it collects data both from the intra-chunk linked list and from the PPA. Additionally, 
@@ -631,6 +689,7 @@ the key and val of the put that triggered the rebalance is included in the appro
 All versions of a key that are older than the last version that does not exceed \code{minVersion} can be safely discarded, whereas
 newer versions are cloned into new chunks. New chunks are created one at a time, as infants, with the trigger chunk as their parent.
 %, and the intra-chunk linked list sorted.
+
 Keys are added, in sorted order, to a new chunk $C$ until it is roughly half full, at which point a new chunk $C'$ is created
 and $C.\code{next}$ is set to $C'$. (In case the last chunk is too sparse, for example, only a quarter full, it is discarded and its keys are moved to the  penultimate chunk).
 
