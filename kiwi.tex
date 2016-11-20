@@ -1,5 +1,5 @@
-%\documentclass[10pt,preprint,nonatbib]{sigplanconf}
-\documentclass[10pt,twocolumn]{article}
+\documentclass[10pt,preprint,numbers]{sigplanconf}
+%\documentclass[10pt,twocolumn]{article}
 \usepackage{times}
 \usepackage{url}                  % format URLs
 \usepackage[colorlinks=true,allcolors=blue,breaklinks,draft=false]{hyperref}   % hyperlinks, including DOIs and URLs in bibliography
@@ -22,7 +22,7 @@
 
 \usepackage{pgfplots}
 
-\usepackage[letterpaper,margin=0.75in,top=1in,bottom=1in]{geometry}
+%\usepackage[letterpaper,margin=0.75in,top=1in,bottom=1in]{geometry}
 
 \input{plotsStyle}
 \input{macros}
@@ -50,14 +50,21 @@
 
 \begin{document}
 
+\special{papersize=8.5in,11in}
+\setlength{\pdfpageheight}{\paperheight}
+\setlength{\pdfpagewidth}{\paperwidth}
+
 \onecolumn
 
 \title{\kiwi: A Key-Value Map for Massive Real-Time Analytics}
 
 \twocolumn
 
+\authorinfo{{Dmitry Basin\\}\and {Edward Bortnikov\\}\and Anastasia Braginsky\and {Eshcar Hillel\\}\and Idit Keidar}{Yahoo Research, Israel}{\{dbasin,ebortnik,anastas,eshcar,idish\}\\@yahoo-inc.com}
+\authorinfo{Moshe Sulamy}{Tel-Aviv University}{moshe.sulamy@cs.tau.ac.il}
+\authorinfo{Guy Golan Gueta}{VMWare Research, Israel}{ggolangueta@vmware.com}
 
-
+\inote{
 \author{
 Dmitry Basin\footnotemark[1] \hspace{0.3in}
 Edward Bortnikov\footnotemark[1] \hspace{0.3in}
@@ -83,7 +90,7 @@ Moshe Sulamy\footnotemark[1] \footnotemark[3] \hspace{0.3in}
 \footnotemark[3]Tel-Aviv University, Tel-Aviv, Israel \hspace{0.3in}
 }
 }
-
+}
 
 \date{}
 
@@ -171,10 +178,9 @@ Prior results~\cite{GolanGueta2015} highlighted that the overall  performance of
 improving  concurrency at the in-memory KV-store.
 
 
-%\newpage
 \bibliography{ref}
-%\bibliographystyle{abbrvnat}
-\bibliographystyle{abbrv}
+%\bibliographystyle{abbrv}
+\bibliographystyle{abbrvnat}
 %
 
 \end{document}
