@@ -47,6 +47,25 @@
     	yticklabel={\pgfmathprintnumber{\tick}}
 }}
 
+\pgfplotsset{rangestyle_ext/.style={%
+        width=0.35\textwidth,
+        enlargelimits=true,
+	ymajorgrids=true,
+        grid=major,
+        grid style={dashed, gray!30},
+        ylabel style={align=center, font=\small},
+        xlabel style={align=center, font=\small},
+        xticklabels={2, 8, 32, 128, 512, 2K, 8K, 32K, 128K},
+        xtick={100,120,144,172,207,249,299,358,430},
+        scaled y ticks=base 10:-6,
+        ytick scale label code/.code={},
+        x axis label/.style={font=\tiny},
+        x tick label style={font=\tiny},
+        y tick label style={font=\tiny},
+        title style={font=\small},
+    	yticklabel={\pgfmathprintnumber{\tick}}
+}}
+
 \pgfplotsset{mystyle16/.style={%
         width=0.35\textwidth,
         xmin=1,xmax=16,
