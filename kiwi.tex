@@ -173,10 +173,11 @@ overhead from puts to scans, and offers lock-free puts and wait-free gets and sc
 We demonstrated {\kiwi}'s significant performance gains over state-of-the-art KV-map
 implementations that support atomic scans. 
 
-Future work could apply {\kiwi} as the in-memory part of a NoSQL KV-store, e.g., HBase~\cite{ApacheHBase}.
+\inote{
+Future work could apply {\kiwi} as the in-memory part of a NoSQL store, e.g., HBase~\cite{ApacheHBase}.
 Prior results~\cite{GolanGueta2015} highlighted that the overall  performance of such systems can be boosted by
 improving  concurrency at the in-memory KV-store.
-
+}
 
 \bibliography{ref}
 %\bibliographystyle{abbrv}

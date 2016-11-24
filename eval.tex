@@ -7,7 +7,7 @@
 \begin{center}
 \input{plots/basics}
 \end{center}
-\caption{Throughput scalability with uniform workloads. (a) Get operations, (b) Put operations, and (c) Scan operations. }
+\caption{Throughput scalability with uniform workloads, 1M dataset. (a) Get operations, (b) Put operations, (c) Scan operations. }
 \label{evaluation:results:getputscan}
 \end{figure*}
 
@@ -15,7 +15,8 @@
 \begin{center}
 \input{plots/scans}
 \end{center}
-\caption{Throughput scalability with concurrent scans and puts. (a,b,c) Scan operations. (d,e,f) Put operations. }
+\caption{Throughput scalability with concurrent scans and puts. (a,b) Scan operations, 1M dataset. 
+(c) Scan operations, 10M dataset. (d,e) Put operations, 1M dataset. (f) Put operations, 10M dataset.  }
 \label{evaluation:results:scan}
 \end{figure*}
 
@@ -39,8 +40,10 @@ to exercise a variety of workloads. The hardware platform %is a high-performance
 features four Intel Xeon E5-4650 8-core CPUs. %(i.e., 32 hardware threads overall). %hyperthreading disabled). 
 Every experiment starts with 20 seconds of {\em warmup} -- inserts
 and deletes of random keys -- to let the HotSpot compiler optimizations take effect. 
-It then runs 10  iterations, 5 seconds each, and averages the results. An iteration fills the map with 1M random (integer, integer) pairs, 
-then exercises some workload. %scenario characterized by the selection of API's, their parameters, and degree of parallelism. 
+It then runs 10  iterations, 5 seconds each, and averages the results. An iteration fills the map with 
+random (integer, integer) pairs, then exercises some workload. 
+{\color{red} Most experiments start from 1M pairs,
+except those focusing on high scalability that start from 10M.}
 
 \textbf{Competition.}
 We compare {\kiwi} to Java implementations of three concurrent KV-maps: (1) the traditional 
@@ -75,7 +78,7 @@ Under put-only workloads (Figure~\ref{evaluation:results:getputscan}(b)), it als
 manipulation. {\snaptree}, which is optimized for random writes, is approximately $10\%$ faster than {\kiwi}
 with 32 threads. Note that in general, {\kiwi}'s gets are faster than its puts because the latter occasionally incur rebalancing. 
 
-Finally, {\kiwi} excels in scan performance (Figure~\ref{evaluation:results:getputscan}(c)). 
+{\kiwi} excels in scan performance (Figure~\ref{evaluation:results:getputscan}(c)). 
 For example, with 32 threads, it exceeds its closest competitor, {\kary}, by over $40\%$. 
 Here too, {\kiwi}'s advantage stems from high locality of access while scanning big chunks. 
 
@@ -90,9 +93,14 @@ while scanning ranges of 32K keys. Figure~\ref{evaluation:results:scan}(b) depic
 threads with varying range sizes. Note that for long scans, {\kary}'s performance deteriorates under contention. 
 This happens because {\kary} restarts the scan every time a put conflicts with it -- i.e., puts make progress 
 but scans get starved. For large ranges, {\snaptree} has the second-fastest scans because it shared-locks 
-the scanned ranges in advance and iterates unobstructed. However, this comes at the expense of puts, 
-since such locking starves concurrent updates. Figures~\ref{evaluation:results:scan}(c) 
-and~\ref{evaluation:results:scan}(d) illustrate this phenomenon. 
+the scanned ranges in advance and iterates unobstructed. 
+{\color{red} Note that {\kiwi}'s throughput slightly decreases when the range is particularly big 
+because it takes longer to collect redundant versions, and therefore the scan has to sift through 
+more data. Figure~\ref{evaluation:results:scan}(c) depicts similar phenomena for a 10M-key dataset.}
+
+{\snaptree}'s competitive scan performance comes at the expense of puts, 
+since its locking approach starves concurrent updates. Figures~\ref{evaluation:results:scan}(d-f) 
+ illustrate this behavior {\color{red}-- the latter for a 10M-key dataset}.
 
 We study the memory footprints of the solutions in this scenario. We focus on 32-key scans -- a setting 
 in which the throughput achieved by all the algorithms except {\snaptree} is similar.  

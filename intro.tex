@@ -28,7 +28,7 @@ Such
 Namely, they require
 %  real-time performance for
 both
-(1) low latency ingestion of incoming data streams, and (2) high performance analytics of the resulting dataset.
+(1) low latency ingestion of incoming data, and (2) high performance analytics of the resulting dataset.
 
 The stream scenario requires the KV-map to support fast \emph{put} operations,
 whereas  analytics  relies on (typically large) \emph{scans} (i.e., range queries).
@@ -45,13 +45,13 @@ hamper updates when scans are ongoing~\cite{BronsonCCO2010,Prokopec12},
 or fail to ensure progress to scans in the presence of updates~\cite{BrownA12}.
 See Section~\ref{sec:related} for a discussion of related work.
 
-A core emphasis in \kiwi's design is on facilitating synchronization between 
+The emphasis in \kiwi's design is on facilitating synchronization between 
 scans and updates. Since scans are typically long, our solution avoids livelock 
 and wasted work by always allowing them to complete (without ever needing to 
 restart). On the other hand, updates are short (since only single-key puts are supported), 
 therefore restarting them in cases of conflicts is practically ``good enough'' -- 
 restarts are rare, and when they do occur, little work is wasted. 
-Formally, \kiwi\  opts to provide \emph{wait-free} gets and scans and \emph{lock-free} put operations.
+Formally, \kiwi\  provides \emph{wait-free} gets and scans and \emph{lock-free} puts.
 
 
 {\bf{Design principles.}}

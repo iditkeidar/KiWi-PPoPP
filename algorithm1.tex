@@ -8,8 +8,9 @@ The philosophy behind KiWi is to serve client operations quickly, while deferrin
 maintenance procedure that runs infrequently. The maintenance procedure, \emph{rebalance}, balances KiWi's layout so as to ensure fast
 access, and also eliminates obsolete information.
 
-In Section~\ref{sec:organization}  we explain how data is organized in KiWi.   Section~\ref{sec:ops} discusses how the different operations are implemented atop this data structure in the common case, when it does not require maintenance.
- In Section~\ref{sec:rebalance} we discuss rebalancing.
+In Section~\ref{sec:organization}  we explain how data is organized in KiWi.   Section~\ref{sec:ops} discusses how the different operations are implemented atop this data structure in the common case, 
+when no maintenance is required.
+Section~\ref{sec:rebalance} focuses on rebalancing.
 
 
 \subsection{Data organization}
@@ -52,7 +53,7 @@ thread is attempting to add \code{k[6]} to the linked list with key $17$ and ver
 
 
 KiWi's chunks are under constant renewal, as the rebalance process removes old chunks and replaces them with new ones.
-Rebalancing not only splits (over-utilized) and merges (under-utilized) chunks as in a B+Tree, it also improves chunks' internal
+It not only splits (over-utilized) and merges (under-utilized) chunks as in a B+Tree, but also improves their internal
 organization, performs \emph{compaction} by eliminating obsolete data, and may involve any number of chunks.
 %A \code{status} field in the chunk indicates whether the chunk is undergoing rebalancing, as explained in Section~\ref{sec:rebalance} below.
 % an \emph{infant} still being initialized, is a \emph{normal} part of
@@ -97,7 +98,8 @@ This allows us to shift the overhead for version management  from updates, which
 
 
 \paragraph{Coordination data structures.}
-KiWi employs two bookkeeping data structures for coordinating different operations:
+KiWi employs two %bookkeeping 
+data structures for coordinating different operations. 
 A global \emph{pending scan array} (PSA) tracks versions used by pending scans for compaction purposes;
 each entry consists of a version \code{ver} and a sequence number \code{seq}, as well as the scan's key range.
 % in order to avoid ABA races.
@@ -111,7 +113,7 @@ Our algorithm makes use of atomic \emph{compare-and-swap} -- CAS(x,old,new),  \e
 \emph{fetch-and-add} -- F\&A(x,a) instructions for synchronizing access to shared data; all impose memory fences.
 A pseudocode of \kiwi\ operations is given in Algorithm~\ref{alg:ops}.
 
-\paragraph{Helping put operations.}
+\paragraph{Helping puts.}
 
 The interaction between put and scan operations is somewhat involved. In a nutshell, a put uses the current value of \code{GV}, whereas a scan begins by atomically fetching-and-incrementing \code{GV}, causing all future puts to write larger versions than the fetched one. Scan then uses the fetched version, \code{ver}, as its scan time, i.e., it returns for each scanned key the latest version that does not exceed \code{ver}.
 
@@ -125,12 +127,12 @@ For example, in Figure~\ref{fig:linearization}, the scan helps \code{put(k1,a)} 
 This orders the put after the scan, so the scan may return the old value.
 
 
-Because scans use version numbers in order to decide which puts they take into account, the  order of put operations is determined by the order of their versions.
+Since scans use version numbers in order to decide which puts they take into account, the  order of put operations is determined by the order of their versions.
 %rather than by the time at which the written value is added to the linked list.
 For consistency, gets also need to rely on version numbers.
 When a \code{get(key)}  encounters a pending \code{put(key,v)}  with no version, it cannot simply ignore the written value, because the put might end up ordered earlier than the get.
 Gets therefore call   \code{helpPendingPuts}  to help pending puts as scans do.
-This is illustrated in Figure~\ref{fig:linearization}, where the get must help \code{put(k2,b)} obtain a version, because ignoring it
+This is depicted in Figure~\ref{fig:linearization}, where the get must help \code{put(k2,b)} obtain a version, because ignoring it
 would order the gets inconsistently with the version order that would later be
 observed by the scan.
 %\todo{Add cross-reference to proof.}
@@ -611,7 +613,7 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 
 
 
-Since multiple threads may execute \code{rebalance($C$)} at the same time, they need to reach \emph{consensus} regarding
+Since multiple threads may simultaneously execute \code{rebalance($C$)}, they need to reach \emph{consensus} regarding
 the set of engaged chunks. The consensus is managed via pointers from the chunks to a dedicated rebalance object \code{ro}.
 Once a chunk is engaged in a rebalance it cannot be engaged with another rebalance.
 The engaged chunks in a particular rebalance always form a contiguous sector of the chunks linked list.
@@ -713,7 +715,7 @@ In the special case when the new list is empty (because no data is kept), step (
 
 %The next phase adds the new chunks to the index and removes  the replaced ones.
 Since the new chunks are already accessible via the linked list and the old chunks are already frozen, the index update can be lazy, and updates of different chunks can proceed without synchronization.
-Nevertheless, we do need to take into account races with old rebalance operations--- a thread that wakes up after being stalled must be prevented from indexing a chunk that had already been supplanted.
+Nevertheless, we need to take into account races with old rebalance operations--- a thread that wakes up after being stalled must be prevented from indexing a chunk that had already been supplanted.
 
 To this end, we assume that the index supports a form of semantic load-linked and store-conditional; specifically, it provides the following API:
 (1) \code{loadPrev(k)} --- returns the indexed chunk mapped to the highest key that does not exceed \code{k};
@@ -728,7 +730,7 @@ add it conditionally to the index. If the conditional put fails and yet the chun
 Index removals call \code{deleteConditional(C.minKey,C)}.
 
 \paragraph{7. Normalization.}
-Finally, the status of the new chunks is changed to normal, and put operations may begin to update them.
+Finally, the status of the new chunks is set to normal, and put operations may begin to update them.
 Though it is possible that old (removed) chunks are still being accessed by old get and scan operations at this point, these operations will
 be ordered before the new puts, so it is acceptable for them to miss the added data. Once all such old operations complete, the
 old chunks can be reclaimed.

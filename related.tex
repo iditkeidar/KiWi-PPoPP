@@ -4,7 +4,9 @@
 Multi-versioning~\cite{BHG:Book87}
 %\todo{cite some DB source}
 is a classical database approach for allowing atomic scans in the presence of updates,
-and has also been used  in the context of transactional memory~\cite{mv-stm-chapter}. But in contrast to standard multi-versioning, \kiwi\ does not create a new version for each update, and leaves version number management to scans rather than updates.
+and has also been used  in the context of transactional memory~\cite{mv-stm-chapter}. 
+In contrast to standard multi-versioning, \kiwi\ does not create a new version for each update, 
+and leaves version numbering to scans rather than updates.
 
 Braginsky and Petrank used lock-free chunks  for efficient memory management
 in the context of non-blocking linked lists~\cite{LinkedListBP} and B$^{+}$trees~\cite{BraginskyP2012}.
@@ -92,7 +94,7 @@ degrading performance as scan sizes increase. Additionally,
 (a common practical use case).
 
 Some techniques offer generic add-ons to atomic \emph{snapshot iterator} in existing data structures~\cite{Petrank2013, wttm2016}.
-However,~\cite{Petrank2013} supports only one scan at a time, and~\cite{wttm2016}'s throughput is lower than \kary's in low contention scenarios. 
+However,~\cite{Petrank2013} supports only one scan at a time, and~\cite{wttm2016}'s throughput is lower than \kary's under low contention. 
 
 Most concurrent key-value maps do not support atomic  scans in any
 way~\cite{JavaConcurrentSkipList,LinkedListBP,BraginskyP2012,Hendler04,NatarajanM2014,Kogan12,Lomet13}.
