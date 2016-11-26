@@ -399,13 +399,13 @@ To address the immediate problem, \kiwi\ could, in principle, restrict itself to
 It can free up space by \emph{compacting} $C$, i.e., removing deleted values, values that are no longer in the linked list
 because their keys have been over-written, as well as values that pertain to old versions that are not required by any active scan;
 if this does not suffice (because all the information in $C$ is needed), \kiwi\ may \emph{split} the chunk.
-And it can address the imbalance  by \emph{sorting} the chunk.
+Furthermore, it can address the imbalance  by \emph{sorting} the chunk.
 
 The problem with this approach is that it may leave under-utilized chunks in the data structure forever.
 \kiwi\ improves space utilization by allowing chunks to \emph{merge}, or more generally,
 \emph{engaging} a number of old chunks in the rebalance,
 and replacing all of them with any number of new ones.
-The set of chunks to engage is determined by the rebalance policy.
+The chunks to engage are determined by the rebalance policy.
 
 Rebalance clones the relevant data from all engaged chunks  into new chunks, and then
 replaces the engaged chunks with the new ones in the data structure.
@@ -520,8 +520,12 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 			\State  CAS(\codeF{ro.next}, \codeF{next}, $\bot$) 	
 		\EndIf
 	\EndWhile
+
+	\ForAll{chunks \codeF{c} from \codeF{ro.first} s.t. \codeF{c.ro} $=$ \codeF{ro}}
+		\State \codeF{last} $\leftarrow$ \codeF{c}
+	\EndFor
 	\State CAS(\codeF{ro.last}, $\bot$, \codeF{last})
-	
+
 	\LineComment {\em 2. freeze}
 	\State $C$.\codeF{status} $\leftarrow$ \codeF{frozen}
 			\ForAll {$c$ in $C$.\codeF{ppa}} 				
@@ -544,7 +548,7 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 		\EndFor
 	\EndIf
 	\LineComment {\em 4. build}
-	\LineComment we assume the number of versions is much smaller than the chunk size
+	\LineComment we assume the \# of versions is much smaller than the chunk size
 	\State $C_f \leftarrow C_n \leftarrow$ new chunk  
 		\State \hspace{10mm} with \codeF{minKey}=$C$.\codeF{minKey}, \codeF{parent}=$C$, \codeF{status = infant} 
 	\ForAll{chunks $C_o$ from \codeF{ro.first} to \codeF{ro.last}}
