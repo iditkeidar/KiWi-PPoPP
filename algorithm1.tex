@@ -437,7 +437,7 @@ The \code{reblance} procedure takes the put's key and value as parameters, and a
 	\begin{algorithmic}[1]{}
 		\algrestore{kiwi} %% Uncomment to add another pseudocode figure
 		\Procedure{checkRebalance}{$C$, key, val}
-		\If{\codeF{$C$.status = infant}} 
+		\If{\codeF{$C$.status=infant}} 
 			\State normalize($C$.parent)
 			\State \codeF{put(key, val)} 
 		\EndIf
@@ -524,7 +524,6 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 	\ForAll{chunks \codeF{c} from \codeF{ro.first} s.t. \codeF{c.ro} $=$ \codeF{ro}}
 		\State \codeF{last} $\leftarrow$ \codeF{c}
 	\EndFor
-	\State CAS(\codeF{ro.last}, $\bot$, \codeF{last})
 
 	\LineComment {\em 2. freeze}
 	\State $C$.\codeF{status} $\leftarrow$ \codeF{frozen}
@@ -550,8 +549,8 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 	\LineComment {\em 4. build}
 	\LineComment we assume the \# of versions is much smaller than the chunk size
 	\State $C_f \leftarrow C_n \leftarrow$ new chunk  
-		\State \hspace{10mm} with \codeF{minKey}=$C$.\codeF{minKey}, \codeF{parent}=$C$, \codeF{status = infant} 
-	\ForAll{chunks $C_o$ from \codeF{ro.first} to \codeF{ro.last}}
+		\State \hspace{5mm} with \codeF{minKey}=$C$.\codeF{minKey}, \codeF{parent}=$C$, \codeF{status=infant} 
+	\ForAll{chunks $C_o$ from \codeF{ro.first} to \codeF{last}}
 		\If{$C_o$.\codeF{minKey} $<$ \codeF{put\_key} $<$ $C_o$.\codeF{next.minKey}}   
 			\State  \codeF{toPut} $\leftarrow \{ \langle$\codeF{put\_key},GV, \codeF{put\_val}$\rangle \}$
 		\Else
@@ -560,8 +559,8 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 		\ForAll{keys k in $C_o \cup $\codeF{toPut} in sorted order}
 			\If{$C_n$ is more than half full} 
 				\State $C_n$.\codeF{next} $\leftarrow$  new chunk 
-					\State \hspace{10mm} with 
-					\codeF{minKey}=$C$.\codeF{k}, \codeF{parent}=$C$, \codeF{status = infant} 
+					\State \hspace{5mm} with 
+					\codeF{minKey}=$C$.\codeF{k}, \codeF{parent}=$C$, \codeF{status=infant} 
 				\State $C_n \leftarrow C_n.$\codeF{next}
 			\EndIf
 			\ForAll{versions $\langle$ ver, val $\rangle$ of k, in descending order}
@@ -571,8 +570,8 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 		\EndFor
 	\EndFor
 	\LineComment {\em 5. replace}
-	\State \codeF{ro.last.immutable} $\leftarrow$ true
-	\State $C_n$.\codeF{next} $\leftarrow$ \codeF{ro.last.next}
+	\State \codeF{last.immutable} $\leftarrow$ true
+	\State $C_n$.\codeF{next} $\leftarrow$ \codeF{last.next}
 	\State \codeF{pred} $\leftarrow$ $C$'s predecessor
 	\If{CAS(\codeF{pred.next+immutable}, $C$+false, $C_f$+false)} 
 		\State return true  \Comment insertion succeeded   \EndIf
@@ -598,7 +597,7 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 			\EndIf 
 		\EndIf
 	\EndFor		
-	\ForAll{chunks $c$ from \codeF{ro.first} to \codeF{ro.last}}
+	\ForAll{chunks $c$ from \codeF{ro.first} to \codeF{last}}
 			\State \codeF{index.deleteConditional($c$.minKey, $c$)}
 	\EndFor
 	\LineComment {\em 7. normalize}	
@@ -623,9 +622,11 @@ Once a chunk is engaged in a rebalance it cannot be engaged with another rebalan
 The engaged chunks in a particular rebalance always form a contiguous sector of the chunks linked list.
 For simplicity, this sector always starts from the trigger chunk forward,  though in principle it is possible
 to grow the sector backwards from the trigger chunk as well.
-A rebalance object holds pointers to three chunks, \code{first}, \code{next} and \code{last}, where \code{first} is
-the trigger chunk,  \code{next} is the next potential chunk to engage in the rebalance,
-and \code{last} is the (agreed-upon) final chunk of the rebalance.
+A rebalance object holds pointers to three chunks, \code{first} (the trigger chunk) and \code{next} 
+(the next potential chunk to engage in the rebalance).
+%A rebalance object holds pointers to three chunks, \code{first}, \code{next} and \code{last}, where \code{first} is
+%the trigger chunk,  \code{next} is the next potential chunk to engage in the rebalance,
+%and \code{last} is the (agreed-upon) final chunk of the rebalance.
 %, after all the nodes between the trigger chunk and it have been engaged.
 The engagement  preserves the following invariant:
 \begin{invariant}
@@ -645,7 +646,8 @@ Next, we try to engage ensuing chunks in the list one by one.
 In each iteration, we consult the policy whether to engage the next chunk.
 We then use CAS to change \code{ro.next} to either \code{ro.next.next}, or $\bot$ indicating
 that it is time to stop engaging chunks.
-We exit the loop when \code{ro.next} is $\bot$, and then set \code{ro.last}  to  the last engaged chunk.
+We exit the loop when \code{ro.next} is $\bot$, and then set the local variable \code{last} 
+to  the last engaged chunk.
 
 
 \paragraph{2. Freezing.}
@@ -689,7 +691,7 @@ either way, it uses the version written by some successful CAS (line~\ref{l:scan
 
 \paragraph{4. Creating new chunks and completing the put.}
 
-The next stage creates new chunks to replace the engaged ones. It traverses the list of engaged chunks from \code{ro.first} to \code{ro.last}.
+The next stage creates new chunks to replace the engaged ones. It traverses the list of engaged chunks from \code{ro.first} to \code{last}.
 In each chunk, it collects data both from the intra-chunk linked list and from the PPA. Additionally, 
 the key and val of the put that triggered the rebalance is included in the appropriate chunk. 
 All versions of a key that are older than the last version that does not exceed \code{minVersion} can be safely discarded, whereas
@@ -703,9 +705,9 @@ and $C.\code{next}$ is set to $C'$. (In case the last chunk is too sparse, for e
 
 Next, rebalance attempts to insert the new section into the linked list instead of the engaged one.
 This involves two steps: First, the \code{next} pointer of the tail chunk in the new section needs to take the value of
-the \code{next} pointer in \code{ro.last}. Second, the \code{next} pointer of the predecessor of \code{ro.first} needs to be set to the head of
+the \code{next} pointer in \code{last}. Second, the \code{next} pointer of the predecessor of \code{ro.first} needs to be set to the head of
 the new chunks' list. In order to execute the two steps atomically, we do the following:
-(1) \emph{mark} the \code{next} pointer in \code{ro.last} as immutable;
+(1) \emph{mark} the \code{next} pointer in \code{last} as immutable;
 (2) set the tail of the new chunk sector to its value; and
 (3) use CAS to set the \code{next} pointer of the predecessor of \code{ro.first}.
 
@@ -713,7 +715,7 @@ If CAS succeeds, we return true.
 If CAS fails because another rebalance (using the same rebalance object) has successfully replaced the trigger chunk with a new one, we simply return false (indicating that the new key and value were not added as part of the rebalance, and hence put should restart) 
 without taking any additional actions. But if CAS fails because some other rebalance had marked the \code{next} pointer as immutable (step (1) above), then we recursively help that rebalance complete, and then re-attempt to insert the new chunk sector to the list.
 
-In the special case when the new list is empty (because no data is kept), step (3) CASes  the \code{next} pointer of the predecessor of \code{ro.first} to the  \code{next} pointer of \code{ro.last}.
+In the special case when the new list is empty (because no data is kept), step (3) CASes  the \code{next} pointer of the predecessor of \code{ro.first} to the  \code{next} pointer of \code{last}.
 
 \paragraph{6. Index update.}
 
