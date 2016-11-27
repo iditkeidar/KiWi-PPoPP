@@ -144,7 +144,7 @@ Hence we conclude that \kiwi\ implements a linearziable map.
 \subsection{Liveness}
 \label{sec:live}
 
- {\kiwi}'s gets and scans are \emph{wait-free}, namely, in any execution, every operation completes within a finite number of steps by its invoking thread. The proof simply shows that the number of iterations in the loops in these operations is finite. 
+ {\kiwi}'s gets and scans are \emph{wait-free}, namely, in any execution, every operation completes within a finite number of steps by its invoking thread. The proof shows that the number of iterations in the loops in these operations is finite. 
 
 We further prove that put operations are \emph{lock-free}, namely, in every execution, \emph{some} operation completes. We show that although a put operation can execute an infinite number of rebalances, this occurs because 
 some operation (and in fact many operations) successfully complete a put.

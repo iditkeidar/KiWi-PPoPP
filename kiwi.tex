@@ -1,4 +1,4 @@
-\documentclass[10pt,preprint,numbers]{sigplanconf}
+\documentclass[10pt,numbers]{sigplanconf}
 %\documentclass[10pt,twocolumn]{article}
 \usepackage{times}
 \usepackage{url}                  % format URLs
@@ -49,6 +49,11 @@
 
 
 \begin{document}
+
+\conferenceinfo{PPoPP~'17}{Feb. 4--8, 2017, Austin, Texas, USA.} 
+\copyrightyear{2017} 
+\copyrightdata{978-1-4503-4493-7/17/02} 
+%\doi{ppopp092} 
 
 \special{papersize=8.5in,11in}
 \setlength{\pdfpageheight}{\paperheight}
@@ -173,10 +178,11 @@ overhead from puts to scans, and offers lock-free puts and wait-free gets and sc
 We demonstrated {\kiwi}'s significant performance gains over state-of-the-art KV-map
 implementations that support atomic scans. 
 
-Future work could apply {\kiwi} as the in-memory part of a NoSQL KV-store, e.g., HBase~\cite{ApacheHBase}.
+\inote{
+Future work could apply {\kiwi} as the in-memory part of a NoSQL store, e.g., HBase~\cite{ApacheHBase}.
 Prior results~\cite{GolanGueta2015} highlighted that the overall  performance of such systems can be boosted by
 improving  concurrency at the in-memory KV-store.
-
+}
 
 \bibliography{ref}
 %\bibliographystyle{abbrv}
