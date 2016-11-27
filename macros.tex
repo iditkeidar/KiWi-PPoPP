@@ -81,11 +81,12 @@
 
 \definecolor{commentcolor}{RGB}{0,51,0}
 \definecolor{normalcolor}{RGB}{0,0,0}
-\algnewcommand{\LineComment}[1]{{\color{commentcolor}\Statex \ \  \(\triangleright\) \textit{#1}}}
+\algnewcommand{\LineComment}[1]{{\textit{\color{commentcolor}\Statex \ \  \(\triangleright\){#1}}}}
+\algnewcommand{\LongLineComment}[1]{\textcolor{commentcolor}{\Statex\(\triangleright\){#1}}}
 
 %\let\oldcomment\Comment
 %\renewcommand{\Comment}[1]{\color{commentcolor}\oldcomment{#1}\color{normalcolor}}
-\renewcommand{\Comment}[1]{\color{commentcolor}{\hfill\(\triangleright\)\textit{#1}}\color{normalcolor}}
+\renewcommand{\Comment}[1]{\hfill\textcolor{commentcolor}{\(\triangleright\){#1}}}%\color{normalcolor}}
 
 \newcommand{\inote}[1]{}
 \newcommand{\frameit}[2]{
