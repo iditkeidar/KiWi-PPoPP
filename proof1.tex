@@ -7,7 +7,8 @@ We now provide the key arguments for \kiwi's correctness.
 Due to space considerations, we state the main lemmas without proof, while 
 a formal correctness proof is deferred to the full version of the paper.
 We begin in Section~\ref{sec:spec} by defining the model and correctness notion we seek to prove, and then present  
-the key safety arguments in Section~\ref{sec:safe}. We briefly touch on liveness in Section~\ref{sec:live}.
+the key safety arguments in Section~\ref{sec:safe}. The liveness proof is omitted for lack of space. 
+%We briefly touch on liveness in Section~\ref{sec:live}.
 
 \subsection{Model and Correctness Specification}
 \label{sec:spec}
@@ -76,7 +77,8 @@ a chunk is immutable before it is accessible from the chunks list and after the 
 In addition, at any point in time each key is covered by the range of at most one mutable chunk. 
 It is easy to show that a put operation always lands at a mutable chunk with a range that covers the key.
 Thus, rebalance operations divide puts of key $k$ into disjoint groups; one group per mutable epoch of each chunk covering the key.
-The following lemma establishes the order among linearization points of put operations within the same epoch.
+The following lemma 
+establishes the order among linearization points of puts within the same epoch.
 \begin{lemma}
 \label{proof:put}
 Consider chunk $C$ accessible as of time $t_0$, key $k$ in the range of $C$, and an
@@ -111,9 +113,9 @@ For a get operation $go$ for a key $k$ in the range of chunk $C$, there are thre
 \item Else, let $po$ be the put operation that inserts the value returned by $go$. \lp{go} is the latest between when $go$ starts traversing $C$'s {PPA} and immediately after \lp{po}.
 \end{enumerate}
 
-The next lemma proves that in the third case no other put operation writing to $k$ is linearized after \lp{po} and before \lp{go}.
-We rely on %Conditions~\ref{proof:put:lp1},~\ref{proof:put:lp3} and~\ref{proof:put:lp4} of 
-Lemma~\ref{proof:put} and the rebalance invariants to prove it.
+The next lemma shows that in the third case no other put writing to $k$ is linearized after \lp{po} and before \lp{go}.
+The proof relies on %Conditions~\ref{proof:put:lp1},~\ref{proof:put:lp3} and~\ref{proof:put:lp4} of 
+Lemma~\ref{proof:put} and the rebalance invariants.% to prove it.
 
 \begin{lemma}
 \label{proof:get}
@@ -126,9 +128,9 @@ Consider a get operation $go$ retrieving the value of key $k$ from chunk $C$. Le
 \end{enumerate}
 \end{lemma}
 
-Scan operations are linearized when \code{GV} is increased beyond their read point, typically by their own F\&I, and sometimes by a helping rebalance. 
-We rely on %Conditions~\ref{proof:put:lp2} and~\ref{proof:put:lp4} of 
-Lemma~\ref{proof:put} to prove the following:
+Scans are linearized when \code{GV} is increased beyond their read point, typically by their own F\&I, and sometimes by a helping rebalance. 
+%We use %Conditions~\ref{proof:put:lp2} and~\ref{proof:put:lp4} of 
+Lemma~\ref{proof:put} helps to prove the following:
 \begin{lemma}
 \label{proof:scan}
 Consider a scan operation $so$ that acquires version $v$ as its read point. For each key $k$ in the range of the scan, $so$ returns the value of the put operation writing to $k$ that is linearized last before \lp{so}.
@@ -140,12 +142,15 @@ It is easy to show that gets and scans land in chunks that contain the saught ke
 Lemma~\ref{proof:get} shows that get operations satisfy their sequential specification, and Lemma~\ref{proof:scan} proves that scans satisfy their sequential specification. 
 Hence we conclude that \kiwi\ implements a linearziable map. 
 
-
+\comment{
 \subsection{Liveness}
 \label{sec:live}
+
+
+The proof shows that (1) every get and scan completes within a finite number of steps, and (2) in every execution, \emph{some} put operation completes. We omit it for lack of space.
 
  {\kiwi}'s gets and scans are \emph{wait-free}, namely, in any execution, every operation completes within a finite number of steps by its invoking thread. The proof shows that the number of iterations in the loops in these operations is finite. 
 
 We further prove that put operations are \emph{lock-free}, namely, in every execution, \emph{some} operation completes. We show that although a put operation can execute an infinite number of rebalances, this occurs because 
-some operation (and in fact many operations) successfully complete a put.
+some operation (and in fact many operations) successfully complete a put.}
 

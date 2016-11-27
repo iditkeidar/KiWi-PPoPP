@@ -3,6 +3,19 @@
 
 \subsection{Setup}
 
+{\bf Implementation.} We implement {\kiwi} in Java, using Doug Lea's concurrent skip-list 
+implementation~\cite{JavaConcurrentSkipList} for the index with added locks to support conditional updates. 
+The code makes extensive use of efficient 
+array copy methods~\cite{JavaArrayCopy}. {\kiwi}'s chunk size is set to 1024. 
+
+The rebalance policy is tuned as follows:
+$\code{checkRebalance}$  invokes rebalance with probability $0.15$ whenever
+ the batched prefix consists of less than $0.625$ of the linked list. Rebalance 
+engages the next chunk whenever engaging it will reduce the number of chunks in the list. 
+We did not implement the piggybacking of puts on rebalance, and instead restart the put after every rebalance.
+This does not violate lock-freedom because the number of threads is much smaller than the chunk size, and 
+hence it is impossible for pending put operations to fill up an entire chunk.
+
 \begin{figure*}
 \begin{center}
 \input{plots/basics}
@@ -20,20 +33,6 @@
 \label{evaluation:results:scan}
 \end{figure*}
 
-{\bf Implementation.} We implement {\kiwi} in Java, using Doug Lea's concurrent skip-list 
-implementation~\cite{JavaConcurrentSkipList} for the index with added locks to support conditional updates. 
-The code makes extensive use of efficient 
-array copy methods~\cite{JavaArrayCopy}. {\kiwi}'s chunk size is set to 1024. 
-
-The rebalance policy is tuned as follows:
-$\code{checkRebalance}$  invokes rebalance with probability $0.15$ whenever
- the batched prefix consists of less than $0.625$ of the linked list. Rebalance 
-engages the next chunk whenever engaging it will reduce the number of chunks in the list. 
-
-We did not implement the piggybacking of puts on rebalance, and instead restart the put after every rebalance.
-This does not violate lock-freedom because the number of threads is much smaller than the chunk size, and 
-hence it is impossible for pending put operations to fill up an entire chunk.
-
 \textbf{Methodology.}
 We leverage the popular {\em synchrobench}  microbenchmark~\cite{Gramoli2015}
 to exercise a variety of workloads. The hardware platform %is a high-performance server, 
@@ -47,21 +46,12 @@ Most experiments start from 1M pairs, except those focusing on high scalability 
 \textbf{Competition.}
 We compare {\kiwi} to Java implementations of three concurrent KV-maps: (1) the traditional 
 skip-list~\cite{JavaConcurrentSkipList} which does not provide linearizable scan semantics, 
-(2) {\kary}~\cite{BrownA12}\footnote{\small{\url{http://www.cs.toronto.edu/~tabrown/kstrq/LockFreeKSTRQ.java}}.}, 
-and (3) {\snaptree}\cite{BronsonCCO2010}\footnote{\small{\url{https://github.com/nbronson/snaptree}}.}. 
+(2) {\snaptree}\cite{BronsonCCO2010}\footnote{\small{\url{https://github.com/nbronson/snaptree}}.}, 
+and (3) {\kary}~\cite{BrownA12}\footnote{\small{\url{http://www.cs.toronto.edu/~tabrown/kstrq/LockFreeKSTRQ.java}}.}. 
 %The implementations of {\kary} and {\snaptree} are available online. 
-For {\kary}, we use the optimal configuration described in~\cite{BrownA12} with $k=64$. 
+For the latter, we use the optimal configuration described in~\cite{BrownA12} with $k=64$. 
 
 \subsection{Results}
-
-
-\begin{figure}
-\begin{center}
-\input{plots/mem-scans-puts}
-\end{center}
-\caption{RAM footprint with concurrent scans and puts, 1M dataset. }
-\label{evaluation:results:mem}
-\end{figure}
 
 \textbf{Basic scenarios: get, put, and scan.} 
 We first focus on three simple workloads: 
@@ -96,17 +86,18 @@ the scanned ranges in advance and iterates unobstructed.
 Note that {\kiwi}'s throughput slightly decreases when the range is particularly big 
 because it takes longer to collect redundant versions, and therefore the scan has to sift through 
 more data. Figure~\ref{evaluation:results:scan}(c) depicts similar phenomena for a 10M-key dataset.
-
+%
 {\snaptree}'s competitive scan performance comes at the expense of puts, 
 since its locking approach starves concurrent updates. Figures~\ref{evaluation:results:scan}(d-f) 
  illustrate this behavior -- the latter for a 10M-key dataset.
 
 We study the memory footprints of the solutions in this scenario. We focus on 32-key scans -- a setting 
 in which the throughput achieved by all the algorithms except {\snaptree} is similar.  
-Figure~\ref{evaluation:results:mem}(e) depicts the JVM memory-in-use metric immediately after a full 
+Figure~\ref{evaluation:results:mem} depicts the JVM memory-in-use metric immediately after a full 
 garbage collection that cleans up all the unused objects, averaged across 50 data points. 
 {\kiwi} is on par with {\kary} and the Java skiplist except with maximal parallelism (16 put threads), 
 in which it consumes 20\% more RAM due to intensive version management.  
+
 
 %Summing up, contrast to its competitors that are tailored for certain workloads, 
 %{\kiwi} serves both scans and puts equally well, echoing the theoretical results.  
@@ -116,3 +107,12 @@ As a balanced data structure, {\kiwi} provides good performance on non-random wo
 We experiment with a monotonically ordered stream of keys. {\kiwi} achieves a throughput 
 similar to the previous experiments. In contrast, {\kary}'s maximal put throughput in this setting is 
 730 times slower -- approximately $13.6$K operations/sec vs {\kiwi}'s $9.98$M. 
+
+\begin{figure}
+\begin{center}
+\input{plots/mem-scans-puts}
+\end{center}
+\caption{RAM use with parallel scans and puts, 1M dataset. }
+\label{evaluation:results:mem}
+\vskip -10pt
+\end{figure}

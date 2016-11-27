@@ -108,8 +108,8 @@ for real-time data acquisition. They often support atomic scans, which can be no
 RAM~\cite{GolanGueta2015}. However, storage access is a principal consideration in such systems, which makes their design 
 different from that of in-memory stores discussed in this paper.
 
-A host of research suggested solutions that support concurrent real-time updates and analytics. 
-For example, MassTree~\cite{Mao:2012} presented a persistent B$^{+}$-tree designed for high concurrency on SMP 
+%A host of research suggested solutions that support concurrent real-time updates and analytics. 
+MassTree~\cite{Mao:2012} presented a persistent B$^{+}$-tree designed for high concurrency on SMP 
 machines. It is not directly comparable to {\kiwi} as it does not support atomic snapshots, which is our key emphasis. 
 Sowell et. al.~\cite{Sowell:2012} presented Minuet -- a distributed in-memory data store with snapshot support. 
 In that context, snapshot creation is relatively expensive, which Minuet mitigates by sharing snapshots across queries. 

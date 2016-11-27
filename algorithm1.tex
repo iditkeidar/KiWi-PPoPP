@@ -521,7 +521,8 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 		\EndIf
 	\EndWhile
 
-	\ForAll{chunks \codeF{c} from \codeF{ro.first} s.t. \codeF{c.ro} $=$ \codeF{ro}}
+	\LongLineComment {search the last concurrently engaged chunk}
+	\ForAll{chunks \codeF{c} from \codeF{last} s.t. \codeF{c.ro} $=$ \codeF{ro}}
 		\State \codeF{last} $\leftarrow$ \codeF{c}
 	\EndFor
 
@@ -546,6 +547,8 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 				\State CAS(\codeF{psa[t]}, $\langle$?,\codeF{seq,from,to}$\rangle, \langle$\codeF{ver,seq,from,to}$\rangle$)
 		\EndFor
 	\EndIf
+
+	\vspace{10mm}
 	\LineComment {\em 4. build}
 	\LongLineComment{we assume the \# of versions is much smaller than the chunk size}
 	\State $C_f \leftarrow C_n \leftarrow$ new chunk  
