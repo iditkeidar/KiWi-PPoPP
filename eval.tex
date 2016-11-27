@@ -42,8 +42,7 @@ Every experiment starts with 20 seconds of {\em warmup} -- inserts
 and deletes of random keys -- to let the HotSpot compiler optimizations take effect. 
 It then runs 10  iterations, 5 seconds each, and averages the results. An iteration fills the map with 
 random (integer, integer) pairs, then exercises some workload. 
-{\color{red} Most experiments start from 1M pairs,
-except those focusing on high scalability that start from 10M.}
+Most experiments start from 1M pairs, except those focusing on high scalability that start from 10M.
 
 \textbf{Competition.}
 We compare {\kiwi} to Java implementations of three concurrent KV-maps: (1) the traditional 
@@ -94,13 +93,13 @@ threads with varying range sizes. Note that for long scans, {\kary}'s performanc
 This happens because {\kary} restarts the scan every time a put conflicts with it -- i.e., puts make progress 
 but scans get starved. For large ranges, {\snaptree} has the second-fastest scans because it shared-locks 
 the scanned ranges in advance and iterates unobstructed. 
-{\color{red} Note that {\kiwi}'s throughput slightly decreases when the range is particularly big 
+Note that {\kiwi}'s throughput slightly decreases when the range is particularly big 
 because it takes longer to collect redundant versions, and therefore the scan has to sift through 
-more data. Figure~\ref{evaluation:results:scan}(c) depicts similar phenomena for a 10M-key dataset.}
+more data. Figure~\ref{evaluation:results:scan}(c) depicts similar phenomena for a 10M-key dataset.
 
 {\snaptree}'s competitive scan performance comes at the expense of puts, 
 since its locking approach starves concurrent updates. Figures~\ref{evaluation:results:scan}(d-f) 
- illustrate this behavior {\color{red}-- the latter for a 10M-key dataset}.
+ illustrate this behavior -- the latter for a 10M-key dataset.
 
 We study the memory footprints of the solutions in this scenario. We focus on 32-key scans -- a setting 
 in which the throughput achieved by all the algorithms except {\snaptree} is similar.  
