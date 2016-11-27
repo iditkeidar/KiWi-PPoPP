@@ -2,6 +2,8 @@
 
 \hyphenation{skip-list}
 
+
+
 %-------------Theorem Definitions ---------------%
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}[theorem]{Lemma}
@@ -76,8 +78,14 @@
 %\newcommand{\xmark}{\emph\footnotesize{\sffamily X}}%
 \newcommand{\xmark}{\footnotesize{\ding{55}}}%
 \newcommand{\mycode}[1]{\texttt{#1}}
-\algnewcommand{\LineComment}[1]{\Statex \ \  \(\triangleright\) {#1}}
 
+\definecolor{commentcolor}{RGB}{0,51,0}
+\definecolor{normalcolor}{RGB}{0,0,0}
+\algnewcommand{\LineComment}[1]{{\color{commentcolor}\Statex \ \  \(\triangleright\) \textit{#1}}}
+
+%\let\oldcomment\Comment
+%\renewcommand{\Comment}[1]{\color{commentcolor}\oldcomment{#1}\color{normalcolor}}
+\renewcommand{\Comment}[1]{\color{commentcolor}{\hfill\(\triangleright\)\textit{#1}}\color{normalcolor}}
 
 \newcommand{\inote}[1]{}
 \newcommand{\frameit}[2]{
