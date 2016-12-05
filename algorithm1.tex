@@ -17,14 +17,14 @@ Section~\ref{sec:rebalance} focuses on rebalancing.
 \label{sec:organization}
 
 \paragraph{Chunk-based data structure.}
-Similarly to a B$^{+}$Tree, the KiWi data structure is organized as a collection of large blocks of contiguous key ranges, called \emph{chunks}. Organizing data in such chunks allows memory allocation/deallocation to occur infrequently. It also makes the design cache-friendly and appropriate for NUMA, where once a chunk is loaded to local memory, access time to additional addresses within the chunk is much shorter. This is particularly important for  scans, which KiWi seeks to optimize, since they access contiguous key ranges, often residing in the same chunk.
+Similarly to a B$^{+}$tree, the KiWi data structure is organized as a collection of large blocks of contiguous key ranges, called \emph{chunks}. Organizing data in such chunks allows memory allocation/deallocation to occur infrequently. It also makes the design cache-friendly and appropriate for NUMA, where once a chunk is loaded to local memory, access time to additional addresses within the chunk is much shorter. This is particularly important for  scans, which KiWi seeks to optimize, since they access contiguous key ranges, often residing in the same chunk.
 
 The KiWi data layout is depicted in Figure~\ref{fig:overview-new}, with one chunk zoomed in.
 The chunk data stucture is described in Algorithm~\ref{alg:chunk}.
 
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=.8\linewidth]{kiwi-layout3.pdf}
+  \includegraphics[width=.8\linewidth]{kiwi-layout4.pdf}
   \caption{{{\kiwi} data structure layout. In the zoomed in chunk (on the right), a pending put by the second
 thread is attempting to add \code{k[6]} to the linked list with key $17$ and version $4$.}}
   \label{fig:overview-new}
@@ -53,13 +53,13 @@ thread is attempting to add \code{k[6]} to the linked list with key $17$ and ver
 
 
 KiWi's chunks are under constant renewal, as the rebalance process removes old chunks and replaces them with new ones.
-It not only splits (over-utilized) and merges (under-utilized) chunks as in a B+Tree, but also improves their internal
+It not only splits (over-utilized) and merges (under-utilized) chunks as in a B$^{+}$Tree, but also improves their internal
 organization, performs \emph{compaction} by eliminating obsolete data, and may involve any number of chunks.
 %A \code{status} field in the chunk indicates whether the chunk is undergoing rebalancing, as explained in Section~\ref{sec:rebalance} below.
 % an \emph{infant} still being initialized, is a \emph{normal} part of
 %the data structure, or is \emph{frozen} for rebalancing purposes.
 
-In order to simplify concurrency control, however, we do not organize chunks in a B$^{+}$Tree, but rather in a sorted linked list. This eliminates the synchronization complexity of  multi-level splits and merges.  Yet, to allow fast access, we supplement the linked list with an auxiliary \emph{index} that maps keys to chunks; it may be organized in an arbitrary way (e.g., skip-list or search tree).
+In order to simplify concurrency control, however, we do not organize chunks in a B$^{+}$tree, but rather in a sorted linked list. This eliminates the synchronization complexity of  multi-level splits and merges.  Yet, to allow fast access, we supplement the linked list with an auxiliary \emph{index} that maps keys to chunks; it may be organized in an arbitrary way (e.g., skip-list or search tree).
 Each chunk is indexed according to the minimal key it holds, which is invariant throughout its lifespan. 
 (The minimal key of the first chunk in the list is $-\infty$.)
 The index supports a wait-free
@@ -161,9 +161,8 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
  \LineComment {\em 1. prepare cell to insert}
 		\State locate target chunk $C$
 \label{l:put-prep}
-		\If{\codeF{checkRebalance($C$, \codeF{key, val}})}
-			\Comment{put completed by rebalance    \label{l:put-rebalance0}}
-			\State return
+		\If{\codeF{checkRebalance($C$, \codeF{key, val}})}   \label{l:put-rebalance0}
+			\State return \Comment{required rebalance completed the put}
 		\EndIf
 		\State \codeF{j} $\leftarrow$ F\&A($C$.\codeF{vCounter, val.size}) \Comment{allocate place for value}
 		\State \codeF{i} $\leftarrow$ F\&I($C$.\codeF{kCounter}) \Comment{allocate cell in linked list}
@@ -171,7 +170,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 			\If {$\neg$\codeF{rebalance($C$,\codeF{key, val})}} \codeF{put(key, val)}  \EndIf 
 		\EndIf
 		\State \codeF{v[j]} $\leftarrow$ \codeF{val}
-		\State \codeF{k[i]} $\leftarrow \langle\codeF{key}, \bot, \codeF{j}, \bot\rangle$ \Comment{version not set yet}
+		\State \codeF{k[i]} $\leftarrow \langle\codeF{key}, \bot, \codeF{j}, \bot\rangle$ \Comment{version and list connection not set yet}
 \label{l:put-prep-end}
  \LineComment {\em 2. get version via PPA}
 		\State \codeF{$C.$ppa[t].idx}  $\leftarrow$  \codeF{i}
@@ -237,11 +236,11 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 \Statex
 
 	\Procedure{helpPendingPuts}{fromKey, toKey, $C$}  \label{l:help-pending}
-			\ForAll {$c$ in $C$.\codeF{ppa}} 				
-				\State \codeF{idx} $\leftarrow$ $c$.\codeF{idx} 
+			\ForAll {entry $e$ in $C$.\codeF{ppa}} 				
+				\State \codeF{idx} $\leftarrow$ $e$.\codeF{idx} 
 				\If{ $C$.\codeF{k[idx].key} $\in$ [\codeF{fromKey, toKey}]} 
 					\State \codeF{gv} $\leftarrow$ \codeF{GV}  \label{l:get-readGV}
-					\State CAS($c$, $\langle \bot$, \codeF{idx} $\rangle$, $\langle$ \codeF{gv, idx} $\rangle$)  \label{l:get-help}
+					\State CAS($e$, $\langle \bot$, \codeF{idx} $\rangle$, $\langle$ \codeF{gv, idx} $\rangle$)  \label{l:get-help}
 					\label{l:help-pending-end}
 				\EndIf
 			\EndFor		
@@ -357,7 +356,7 @@ by traversing the list of chunks, and within each chunk, proceeding as get does 
  			        &  \codeF{ppa[t].ver} 		& F\&A \codeF{vCounter} 		& 				\\
 \hline
  {\bfseries rebalance}& 	CAS				& CAS  to \codeF{frozen}   		& CAS \\
-				& 	\codeF{psa} 			& \codeF{ppa[t].ver}   		& \codeF{rebalanceObj} \\
+				& 	\codeF{psa[t].ver} 			& \codeF{ppa[t].ver}   		& \codeF{rebalanceObj} \\
  \hline
 
 \end{tabular}
@@ -416,7 +415,7 @@ But in order to avoid inconsistencies, both chunks (old and new) are immutable t
 This defines a life cycle for chunks: they are created as immutable \emph{infants} by some \emph{parent} trigger chunk $C$;
 they become \emph{normal} mutable chunks at the end of the rebalance process; and finally, they become \emph{frozen}
 (and again immutable) when they are about to be replaced.
-(We assume that a complementary garbage-collection mechanism eventually removes frozen chunks.)
+(We assume that a complementary garbage-collection mechanism eventually removes disconnected, frozen chunks.)
 %after there are no pointers to them.
 %from the chunk linked list, the index, or active threads.
 The chunk's status (infant, normal, or frozen), the pointer to parent, and the pointer to rebalance object are part of the rebalance data
@@ -528,9 +527,9 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 
 	\LineComment {\em 2. freeze}
 	\State $C$.\codeF{status} $\leftarrow$ \codeF{frozen}
-			\ForAll {$c$ in $C$.\codeF{ppa}} 				
-				\State \codeF{idx} $\leftarrow c$.\codeF{idx} 
-				\State CAS($c$, $\langle\bot$, \codeF{idx}$\rangle, \langle$\codeF{frozen, idx}$\rangle$)  
+			\ForAll {entry $e$ in $C$.\codeF{ppa}} 				
+				\State \codeF{idx} $\leftarrow e$.\codeF{idx} 
+				\State CAS($e$, $\langle\bot$, \codeF{idx}$\rangle, \langle$\codeF{frozen, idx}$\rangle$)  
 			\EndFor		
 
 	\LineComment {\em 3. pick minimal version}
@@ -590,7 +589,6 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 	\Statex
 	
 	\Procedure{normalize}{$C$}	
-		
 	\LineComment {\em 6. update index}
 	\ForAll{chunks $c$ from $C_f$ to $C_n$}
 		\State load: \codeF{index.loadPrev($c$.minKey)}
