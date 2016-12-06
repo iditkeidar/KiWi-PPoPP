@@ -60,46 +60,19 @@
 
 \twocolumn
 
-\authorinfo{{Dmitry Basin\\}\and {Edward Bortnikov\\}\and Anastasia Braginsky\and {Eshcar Hillel\\}\and Idit Keidar}{Yahoo Research, Israel}{\{dbasin,ebortnik,anastas,eshcar,idish\}\\@yahoo-inc.com}
-\authorinfo{Moshe Sulamy}{Tel-Aviv University}{moshe.sulamy@cs.tau.ac.il}
-\authorinfo{Guy Golan Gueta}{VMWare Research, Israel}{ggolangueta@vmware.com}
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
 
-\inote{
-\author{
-Dmitry Basin\footnotemark[1] \hspace{0.3in}
-Edward Bortnikov\footnotemark[1] \hspace{0.3in}
-Anastasia Braginsky\footnotemark[1] \hspace{0.3in}
-\\
-Guy Golan Gueta\footnotemark[1]  \hspace{0.3in}
-Eshcar Hillel\footnotemark[1]  \hspace{0.3in}
-Idit Keidar\footnotemark[1] \footnotemark[2] \hspace{0.3in}
-Moshe Sulamy\footnotemark[1] \footnotemark[3] \hspace{0.3in}
-\\
-\large{
-%\footnotemark[1]Yahoo Research, Haifa, Israel \hspace{0.3in} \textsf{anastas@yahoo-inc.com}
-%\\
-%\footnotemark[2]Tel-Aviv University, Tel-Aviv, Israel
-\footnotemark[1]Yahoo Research, Haifa, Israel \hspace{0.3in}
-}
-\\
-\large{
-\footnotemark[2]Technion IIT, Haifa, Israel \hspace{0.3in}
-}
-\\
-\large{
-\footnotemark[3]Tel-Aviv University, Tel-Aviv, Israel \hspace{0.3in}
-}
-}
-}
+\authorinfo{{Dmitry Basin\footnotemark[1]}\and {Edward Bortnikov\footnotemark[1]}\and Anastasia Braginsky\footnotemark[1]\and
+Guy Golan Gueta\footnotemark[2]\\ \and   {Eshcar Hillel\footnotemark[1]} \and Idit Keidar\footnotemark[3]\footnotemark[1] \and 
+Moshe Sulamy\footnotemark[4]}
+{\footnotemark[1]Yahoo Research, Israel \and \footnotemark[2]VMWare Research, Israel \and \footnotemark[3]Technion, Israel
+\and \footnotemark[4]Tel Aviv University}
+{\{dbasin,ebortnik,anastas,eshcar\}@yahoo-inc.com \and ggolangueta@vmware.com
+ \and idish@ee.technion.ac.il \and moshe.sulamy@cs.tau.ac.il}
 
 \date{}
 
-
-
 \maketitle
-%\twocolumn
-
-
 
 \begin{abstract}
 Modern big data processing platforms employ huge in-memory \emph{key-value} (KV) maps.
@@ -151,7 +124,7 @@ unbalanced ones in case update order is not random.
 
 %\end{titlepage}
 
-
+\renewcommand{\thefootnote}{\arabic{footnote}}
 
 \input{intro}
 
