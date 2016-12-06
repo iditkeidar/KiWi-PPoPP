@@ -43,6 +43,7 @@ thread is attempting to add \code{k[6]} to the linked list with key $17$ and ver
 \LineComment pending put array allowing scans and gets to help puts
 	\State array \codeF{ppa[{\scshape num\_threads}]} of $\langle$ver, idx$\rangle$
 	\State \codeF{next} \Comment{pointer to next chunk in chunk list}
+	\State \codeF{mark} \Comment{indicates whether next is immutable}
 	\State rebalance data $\langle$status, parent, ro$\rangle$ \Comment{rebalancing-related data}
 \vspace{-1em}
 \end{algorithmic}
@@ -439,14 +440,17 @@ The \code{reblance} procedure takes the put's key and value as parameters, and a
 		\If{\codeF{$C$.status=infant}} 
 			\State normalize($C$.parent)
 			\State \codeF{put(key, val)} 
+			\State return true
 		\EndIf
 		\If{\codeF{$C$.vCounter} $\geq$ \codeF{$C$.v.size} $\vee$ \codeF{$C$.kCounter} $\geq$ \codeF{$C$.k.size} $\vee$ 
 			\State \codeF{$C$.status = frozen}  $ֿֿ\vee$ \codeF{policy($C$)} 
 			} 
-			\State ok $\leftarrow$ \codeF{rebalance($C$, key, val)}
-			\State normalize($C$)
-			\If {$\neg$ok} \codeF{put(key, val)} \EndIf 
+%			\State ok $\leftarrow$ \codeF{rebalance($C$, key, val)}
+%			\State normalize($C$)
+			\If {$\neg$\codeF{rebalance($C$, key, val)}} \codeF{put(key, val)} \EndIf 
+			\State return true
 		\EndIf
+		\State return false
 		\EndProcedure
 		\algstore{kiwi} %% Uncomment to add another pseudocode figure
 	\end{algorithmic}
@@ -489,10 +493,9 @@ rebalance starts in stage $6$, since the chunk's reachability implies that stage
 In the other two cases, (a frozen chunk or a new trigger chunk), rebalance cycles through all seven stages.
 This is safe because all stages are idempotent, and ensures lock-freedom, namely, progress in case the original rebalance stalls.
 The first five stages are performend in the \codeF{rebalance} procedure, whereas the last two are performed in \codeF{normalize}.
-\inote{A pseudo-code for the rebalance process is given in Algorithm~\ref{alg:check-rebalance}.
-We now describe the stages in detail.}
-%
-For space limitations we omit the rebalance pseudocode; we now describe the seven stages.
+Pseudocode for these operations is given in Algorithm~\ref{alg:rebalance}.
+The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{last}. The latter tracks the last chunk engaged in rebalancing, whereas the first two hold pointers to the first and last new chunks, resp.
+
 
 \begin{algorithm*}[th]
 \codesize
@@ -526,18 +529,24 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 	\EndFor
 
 	\LineComment {\em 2. freeze}
-	\State $C$.\codeF{status} $\leftarrow$ \codeF{frozen}
-			\ForAll {entry $e$ in $C$.\codeF{ppa}} 				
+	\ForAll{chunks $c$ from \codeF{ro.first} to \codeF{last}}
+		\State $c$.\codeF{status} $\leftarrow$ \codeF{frozen}
+			\ForAll {entry $e$ in $c$.\codeF{ppa}} 				
 				\State \codeF{idx} $\leftarrow e$.\codeF{idx} 
 				\State CAS($e$, $\langle\bot$, \codeF{idx}$\rangle, \langle$\codeF{frozen, idx}$\rangle$)  
 			\EndFor		
+	\EndFor
 
 	\LineComment {\em 3. pick minimal version}
 
-	\ForAll{\codeF{psa[t] = $\langle$?, seq, from, to$\rangle$}}
-		\If{$C$.minKey $\le$ to $\wedge$ 
-			\State $C$.next.minKey $>$ from} 
-			\State add { $\langle$t, seq, from, to$\rangle$} to \codeF{toHelp}
+	\State minVersion $\leftarrow$ GV 
+	\ForAll{\codeF{psa[t] = $\langle$ver, seq, from, to$\rangle$}}
+		\If{\codeF{ro.first.minKey} $\le$ to $\wedge$
+			\State {\codeF{last.next.minKey} $>$ from} }
+			\If{ver=seq} add { $\langle$t, seq, from, to$\rangle$} to \codeF{toHelp} 
+			\Else\  
+				minVersion $\leftarrow$ min(minVersion, ver)
+			\EndIf
 		\EndIf
 	\EndFor				
 	\If{toHelp $\not=\emptyset$}
@@ -547,9 +556,12 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 		\EndFor
 	\EndIf
 
-	\vspace{10mm}
+
+%\Statex
+
+
 	\LineComment {\em 4. build}
-	\LongLineComment{we assume the \# of versions is much smaller than the chunk size}
+%	\LongLineComment{we assume the \# of versions is much smaller than the chunk size}
 	\State $C_f \leftarrow C_n \leftarrow$ new chunk  
 		\State \hspace{5mm} with \codeF{minKey}=$C$.\codeF{minKey}, \codeF{parent}=$C$, \codeF{status=infant} 
 	\ForAll{chunks $C_o$ from \codeF{ro.first} to \codeF{last}}
@@ -558,7 +570,7 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 		\Else
 			\State \codeF{toPut} $\leftarrow \emptyset$
 		\EndIf
-		\ForAll{keys k in $C_o \cup $\codeF{toPut} in sorted order}
+		\ForAll{keys k in $C_o.ppa \cup C_o.k\  \cup $ \codeF{toPut} in sorted order}
 			\If{$C_n$ is more than half full} 
 				\State $C_n$.\codeF{next} $\leftarrow$  new chunk 
 					\State \hspace{5mm} with 
@@ -567,18 +579,21 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 			\EndIf
 			\ForAll{versions $\langle$ ver, val $\rangle$ of k, in descending order}
 				\State insert $\langle$ k, ver, val $\rangle$ to $C_n$
-				\If{ver $<$ \codeF{minKey}} break \EndIf
+				\If{ver $<$ \codeF{minVersion}} break \EndIf
 			\EndFor
 		\EndFor
 	\EndFor
 	\LineComment {\em 5. replace}
-	\State \codeF{last.immutable} $\leftarrow$ true
+	\State \codeF{last.mark} $\leftarrow$ true
 	\State $C_n$.\codeF{next} $\leftarrow$ \codeF{last.next}
 	\State \codeF{pred} $\leftarrow$ $C$'s predecessor
-	\If{CAS(\codeF{pred.next+immutable}, $C$+false, $C_f$+false)} 
-		\State return true  \Comment{insertion succeeded}   \EndIf
+	\If{CAS(\codeF{pred.next+mark}, $C$+false, $C_f$+false)}
+		\Comment{success}  
+		\State normalize($C$); return true    
+	\EndIf
 	\If{\codeF{pred.next.parent} = $C$} 
-		\State return false \Comment{someone else's insertion succeeded}
+		\Comment{someone else succeeded}
+		\State normalize($C$); return false 
 	\Else \Comment{insertion failed, help predecessor and retry}
 		\State rebalance(pred, $\bot, \bot$)
 		\State return rebalance($C$, put\_key, put\_val)
@@ -590,23 +605,25 @@ For space limitations we omit the rebalance pseudocode; we now describe the seve
 	
 	\Procedure{normalize}{$C$}	
 	\LineComment {\em 6. update index}
+	
+		\ForAll{chunks $c$ from \codeF{ro.first} to \codeF{last}}
+			\State \codeF{index.deleteConditional($c$.minKey, $c$)}
+	\EndFor
+	
 	\ForAll{chunks $c$ from $C_f$ to $C_n$}
 		\State load: \codeF{index.loadPrev($c$.minKey)}
 		\If {$\neg c$.\codeF{frozen}}
 			\If{$\neg$ \codeF{index.putConditional($c$.minKey, $c$)}}
-				goto load 
+				\State goto load 
 			\EndIf 
 		\EndIf
 	\EndFor		
-	\ForAll{chunks $c$ from \codeF{ro.first} to \codeF{last}}
-			\State \codeF{index.deleteConditional($c$.minKey, $c$)}
-	\EndFor
+
 	\LineComment {\em 7. normalize}	
 	\ForAll{chunks $c$ from $C_f$ to $C_n$}
 		$c$.\codeF{status $\leftarrow$ normal}
 	\EndFor		
 	\EndProcedure
-
 		\end{algorithmic}
 	\end{multicols}
 \caption{\kiwi's rebalance operation.}
@@ -623,12 +640,8 @@ Once a chunk is engaged in a rebalance it cannot be engaged with another rebalan
 The engaged chunks in a particular rebalance always form a contiguous sector of the chunks linked list.
 For simplicity, this sector always starts from the trigger chunk forward,  though in principle it is possible
 to grow the sector backwards from the trigger chunk as well.
-A rebalance object holds pointers to three chunks, \code{first} (the trigger chunk) and \code{next} 
+A rebalance object holds pointers to two chunks, \code{first} (the trigger chunk) and \code{next} 
 (the next potential chunk to engage in the rebalance).
-%A rebalance object holds pointers to three chunks, \code{first}, \code{next} and \code{last}, where \code{first} is
-%the trigger chunk,  \code{next} is the next potential chunk to engage in the rebalance,
-%and \code{last} is the (agreed-upon) final chunk of the rebalance.
-%, after all the nodes between the trigger chunk and it have been engaged.
 The engagement  preserves the following invariant:
 \begin{invariant}
 Consider a rebalance object \code{ro}.
@@ -686,7 +699,7 @@ Specifically, rebalance does the following: (1) it scans the  PSA for entries wi
 range covered by the engaged chunks; (2) if any are found, it fetches-and-increments \code{GV} and
 reads its new version into \code{gv}; (3) for every \code{psa[t]}=  $\langle$?, $n \rangle$ entry found in (1),
 it attempts to CAS \code{psa[t]} to  $\langle$\code{gv}, $n \rangle$.
-Note that scan's CAS (line~\ref{l:scan-FiCAS})  might fail  in case it is helped, but
+Note that scan's CAS (Algorithm~\ref{alg:ops}, line~\ref{l:scan-FiCAS})  might fail  in case it is helped, but
 either way, it uses the version written by some successful CAS (line~\ref{l:scan-version-end}).
 
 
@@ -701,6 +714,7 @@ newer versions are cloned into new chunks. New chunks are created one at a time,
 
 Keys are added, in sorted order, to a new chunk $C$ until it is roughly half full, at which point a new chunk $C'$ is created
 and $C.\code{next}$ is set to $C'$. (In case the last chunk is too sparse, for example, only a quarter full, it is discarded and its keys are moved to the  penultimate chunk).
+We assume here that the number of versions is much smaller than the chunk size.
 
 \paragraph{5. Data structure update.}
 
