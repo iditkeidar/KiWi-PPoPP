@@ -40,7 +40,7 @@ thread is attempting to add \code{k[6]} to the linked list with key $17$ and ver
 	\State array \codeF{v} of values									\Comment{values stored in the list}
 	\State \codeF{kCounter, vCounter} \Comment{end of allocated (full) prefixes} % in k and v
 	\State \codeF{batchedIndex} \Comment{end of batched prefix in k}
-\LineComment pending put array allowing scans and gets to help puts
+\LineComment{pending put array allowing scans and gets to help puts}
 	\State array \codeF{ppa[{\scshape num\_threads}]} of $\langle$ver, idx$\rangle$
 	\State \codeF{next} \Comment{pointer to next chunk in chunk list}
 	\State \codeF{mark} \Comment{indicates whether next is immutable}
@@ -54,7 +54,7 @@ thread is attempting to add \code{k[6]} to the linked list with key $17$ and ver
 
 
 KiWi's chunks are under constant renewal, as the rebalance process removes old chunks and replaces them with new ones.
-It not only splits (over-utilized) and merges (under-utilized) chunks as in a B$^{+}$Tree, but also improves their internal
+It not only splits (over-utilized) and merges (under-utilized) chunks as in a B$^{+}$tree, but also improves their internal
 organization, performs \emph{compaction} by eliminating obsolete data, and may involve any number of chunks.
 %A \code{status} field in the chunk indicates whether the chunk is undergoing rebalancing, as explained in Section~\ref{sec:rebalance} below.
 % an \emph{infant} still being initialized, is a \emph{normal} part of
@@ -91,7 +91,8 @@ creating fairly short bypasses.
 Given that the prefix and the remainder are of similar sizes, the expected search time remains poly-logarithmic.
 Nevertheless, in the worst-case, the search time is linear in the size of the remainder of the chunk.
 
-In order to support atomic scans, KiWi employs \emph{multi-versioning}, i.e., sometimes keeps the old version of a key instead of overwriting it. To this end, KiWi maintains a \emph{global version}, \code{GV}, and tags each key-value pair with a version, \code{ver}. Versions of a key are chained in the linked-list in descending version order. The compaction process that occurs as part of rebalancing eliminates obsolete versions.
+In order to support atomic scans, KiWi employs \emph{multi-versioning}, i.e., sometimes keeps the old version of a key instead of overwriting it. To this end, KiWi maintains a \emph{global version}, \code{GV}, and tags each key-value pair with a version, \code{ver}. Versions of a key are chained in the linked-list in descending version order, so the most recent version is encountered first. 
+The compaction process that occurs as part of rebalancing eliminates obsolete versions.
 Unlike traditional multi-versioning, KiWi creates new versions \emph{only} as needed for ongoing scans.
 %This reduces the storage overhead between compactions.
 %More importantly,
@@ -168,7 +169,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 		\State \codeF{j} $\leftarrow$ F\&A($C$.\codeF{vCounter, val.size}) \Comment{allocate place for value}
 		\State \codeF{i} $\leftarrow$ F\&I($C$.\codeF{kCounter}) \Comment{allocate cell in linked list}
 		\If{ \codeF{j} $\geq$ \codeF{$C$.v.size} $\vee$  \codeF{i} $\geq$ \codeF{$C$.k.size}} 
-			\If {$\neg$\codeF{rebalance($C$,\codeF{key, val})}} \codeF{put(key, val)}  \EndIf 
+			\If {$\neg$\codeF{rebalance($C$, \codeF{key, val})}} \codeF{put(key, val)}  \EndIf 
 		\EndIf
 		\State \codeF{v[j]} $\leftarrow$ \codeF{val}
 		\State \codeF{k[i]} $\leftarrow \langle\codeF{key}, \bot, \codeF{j}, \bot\rangle$ \Comment{version and list connection not set yet}
@@ -178,9 +179,9 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 \label{l:put-version}
 		\State \codeF{gv} $\leftarrow$ \codeF{GV}      \label{l:put-LP}
 		\State CAS($C.$\codeF{ppa[t]}, $\langle \bot$, \codeF{i} $\rangle$, $\langle$ \codeF{gv, i} $\rangle$) \label{l:put-cas-version}
-		\If{\codeF{$C.$ppa[t].ver = frozen}} %%% or $C$.\codeF{status = frozen}}
-		\Comment{$C$ is being rebalanced \label{l:put-frozen}}
-			\If {$\neg$\codeF{rebalance($C$,\codeF{key, val})}} \codeF{put(key, val)}  \EndIf    		\label{l:put-restart}
+		\If{\codeF{$C.$ppa[t].ver = frozen}} 			\label{l:put-frozen}
+		\Comment{$C$ is being rebalanced} 
+			\If {$\neg$\codeF{rebalance($C$, \codeF{key, val})}} \codeF{put(key, val)}  \EndIf    		\label{l:put-restart}
 		\EndIf
 		\State  $C$.\codeF{k[i].ver}  $\leftarrow$   \codeF{$C.$ppa[t].ver}
 \label{l:put-version-end}
@@ -198,7 +199,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 	\Until{\codeF{c.valPtr} $ \geq$ \codeF{j}}
 \label{l:put-ll-end}
 %	\LineComment clean up
-	\State  \codeF{ppa[t]} $\leftarrow \langle \bot, \bot \rangle$
+	\State  $C$.\codeF{ppa[t]} $\leftarrow \langle \bot, \bot \rangle$
 \label{l:put-clean}
 	\EndProcedure
 
@@ -215,9 +216,10 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 
 		\Procedure{scan}{fromKey, toKey}	
 	 \LineComment {\em 1. obtain version - synchronize with rebalance via PSA}
-		\State \codeF{psa[t]}  $\leftarrow$ $\langle ?$,\codeF{seq, fromKey, toKey}$\rangle$ \Comment{\codeF{seq} is a thread-local counter    \label{l:scan-version}}
+		\State \codeF{psa[t]}  $\leftarrow$ $\langle ?$, \codeF{seq, fromKey, toKey}$\rangle$ \Comment{\codeF{seq} is  thread-local     \label{l:scan-version}}
 		\State \codeF{ver} $ \leftarrow$ F\&I(GV)
-		\State CAS(\codeF{psa[t]}, $\langle ?$,\codeF{seq, fromKey, toKey}$\rangle$, $\langle$\codeF{ver,seq, fromKey, toKey}$\rangle$)
+		\State CAS(\codeF{psa[t]}, $\langle ?$, \codeF{seq, fromKey, toKey}$\rangle$, 	
+		$\langle$\codeF{ver, seq, fromKey, toKey}$\rangle$)
 			 \label{l:scan-FiCAS}
 		\State \codeF{ver}  $ \leftarrow$  \codeF{psa[t].ver}
 %%%  \Comment{accounts for the case that a version had already been assigned}
@@ -230,13 +232,13 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 			\EndFor
 		\EndFor \label{l:scan-scan-end}
 %		\State \codeF{seq++} \label{l:scan-version}
-		\State \codeF{psa[t]}  $\leftarrow$ $\langle\bot$,\codeF{seq++}$\bot, bot, \rangle$
+		\State \codeF{psa[t]}  $\leftarrow$ $\langle\bot$, \codeF{seq++}, $\bot, \bot \rangle$
 	\EndProcedure
 
 %\Statex
 \Statex
 
-	\Procedure{helpPendingPuts}{fromKey, toKey, $C$}  \label{l:help-pending}
+	\Procedure{helpPendingPuts}{$C$,fromKey, toKey}  \label{l:help-pending}
 			\ForAll {entry $e$ in $C$.\codeF{ppa}} 				
 				\State \codeF{idx} $\leftarrow$ $e$.\codeF{idx} 
 				\If{ $C$.\codeF{k[idx].key} $\in$ [\codeF{fromKey, toKey}]} 
@@ -251,7 +253,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 
 	\Procedure{findLatest}{key, ver, C}  \label{l:find-latest}
 %		\LineComment find cell in $C$ with \codeF{key} and highest version up to \codeF{ver} %, breaking ties using \codeF{valPtr}
-		\State search \codeF{key} in $C$.\codeF{k} and \codeF{ppa}
+		\State search \codeF{key} in $C$.\codeF{k} and $C$.\codeF{ppa}
 % using binary search up to $C.$\codeF{batchedIndex} and then linear traversal	
 %		\State search \codeF{key} in \codeF{ppa}
 %		\If{found at least one cell with \codeF{key} and \codeF{ver}}
@@ -416,14 +418,14 @@ But in order to avoid inconsistencies, both chunks (old and new) are immutable t
 This defines a life cycle for chunks: they are created as immutable \emph{infants} by some \emph{parent} trigger chunk $C$;
 they become \emph{normal} mutable chunks at the end of the rebalance process; and finally, they become \emph{frozen}
 (and again immutable) when they are about to be replaced.
-(We assume that a complementary garbage-collection mechanism eventually removes disconnected, frozen chunks.)
+(We assume that a complementary garbage-collection mechanism eventually removes disconnected frozen chunks.)
 %after there are no pointers to them.
 %from the chunk linked list, the index, or active threads.
 The chunk's status (infant, normal, or frozen), the pointer to parent, and the pointer to rebalance object are part of the rebalance data
 stored in the chunk (see Algorithm~\ref{alg:chunk}).
 
 
-The \code{checkRebalance($C$)} procedure is given in Algorithm~\ref{alg:rebalance}. 
+The \code{checkRebalance($C$)} procedure is given in Algorithm~\ref{alg:check-rebalance}. 
 It checks whether $C$ is immutable, and if so, helps complete the process that makes it immutable
 ($C$'s parent in case $C$ is an infant, and $C$ in case it is frozen).
 The rebalance procedure consists of two functions, \codeF{rebalance} and \codeF{normalize}; in case
@@ -490,11 +492,11 @@ Rebalance  proceeds in the following seven stages:
 
 If the first check of \code{checkRebalance()} decides to help rebalance a chunk's parent, then
 rebalance starts in stage $6$, since the chunk's reachability implies that stage $5$ is complete.
-In the other two cases, (a frozen chunk or a new trigger chunk), rebalance cycles through all seven stages.
+In other cases, (a frozen chunk or a new trigger chunk), rebalance cycles through all seven stages.
 This is safe because all stages are idempotent, and ensures lock-freedom, namely, progress in case the original rebalance stalls.
 The first five stages are performend in the \codeF{rebalance} procedure, whereas the last two are performed in \codeF{normalize}.
 Pseudocode for these operations is given in Algorithm~\ref{alg:rebalance}.
-The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{last}. The latter tracks the last chunk engaged in rebalancing, whereas the first two hold pointers to the first and last new chunks, resp.
+The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{last}. The latter tracks the last chunk engaged in rebalancing, whereas the first two hold pointers to the first and last new chunks, respectively.
 
 
 \begin{algorithm*}[th]
@@ -504,10 +506,10 @@ The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{l
 	\algrestore{kiwi}
 	\Procedure{rebalance}{$C$, put\_key, put\_val}	
 	\LineComment {\em 1. engage }
-	\State \codeF{ro} $\leftarrow$ new rebalance object, initially $\langle C, C.\codeF{next}, \bot \rangle$
-	\State \codeF{last} $\leftarrow C$
-	\State CAS($C$.\codeF{ro}, $\bot$, \codeF{ro})
+	\State \codeF{tmp} $\leftarrow$ new rebalance object, initially $\langle $C$, $C$.\codeF{next} \rangle$
+	\State CAS($C$.\codeF{ro}, $\bot$, \codeF{tmp})
 	\State \codeF{ro} $\leftarrow$ $C$.\codeF{ro}
+	\State \codeF{last} $\leftarrow C$
 	\While{ \codeF{ro.next} $\not=\bot$ }
 		\State \codeF{next} $\leftarrow$ \codeF{ro.next}
 		\If{\codeF{policy(next)}} \Comment{try to engage next}
@@ -523,13 +525,17 @@ The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{l
 		\EndIf
 	\EndWhile
 
-	\LongLineComment {search the last concurrently engaged chunk}
-	\ForAll{chunks \codeF{c} from \codeF{last} s.t. \codeF{c.ro} $=$ \codeF{ro}}
-		\State \codeF{last} $\leftarrow$ \codeF{c}
-	\EndFor
+	\LineComment {search for the last concurrently engaged chunk}
+	\While{\codeF{last.next.ro = ro}}
+		\State \codeF{last} $\leftarrow $ \codeF{last.next}
+	\EndWhile
+%	\EndFor
+%	\ForAll{chunk $c$ from \codeF{last} s.t. $c$.\codeF{ro} $=$ \codeF{ro}}
+%		\State \codeF{last} $\leftarrow c$ 
+%	\EndFor
 
 	\LineComment {\em 2. freeze}
-	\ForAll{chunks $c$ from \codeF{ro.first} to \codeF{last}}
+	\ForAll{chunk $c$ from \codeF{ro.first} to \codeF{last}}
 		\State $c$.\codeF{status} $\leftarrow$ \codeF{frozen}
 			\ForAll {entry $e$ in $c$.\codeF{ppa}} 				
 				\State \codeF{idx} $\leftarrow e$.\codeF{idx} 
@@ -543,7 +549,7 @@ The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{l
 	\ForAll{\codeF{psa[t] = $\langle$ver, seq, from, to$\rangle$}}
 		\If{\codeF{ro.first.minKey} $\le$ to $\wedge$
 			\State {\codeF{last.next.minKey} $>$ from} }
-			\If{ver=seq} add { $\langle$t, seq, from, to$\rangle$} to \codeF{toHelp} 
+			\If{ver=?} add { $\langle$t, seq, from, to$\rangle$} to \codeF{toHelp} 
 			\Else\  
 				minVersion $\leftarrow$ min(minVersion, ver)
 			\EndIf
@@ -564,20 +570,20 @@ The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{l
 %	\LongLineComment{we assume the \# of versions is much smaller than the chunk size}
 	\State $C_f \leftarrow C_n \leftarrow$ new chunk  
 		\State \hspace{5mm} with \codeF{minKey}=$C$.\codeF{minKey}, \codeF{parent}=$C$, \codeF{status=infant} 
-	\ForAll{chunks $C_o$ from \codeF{ro.first} to \codeF{last}}
+	\ForAll{chunk $C_o$ from \codeF{ro.first} to \codeF{last}}
 		\If{$C_o$.\codeF{minKey} $<$ \codeF{put\_key} $<$ $C_o$.\codeF{next.minKey}}   
 			\State  \codeF{toPut} $\leftarrow \{ \langle$\codeF{put\_key},GV, \codeF{put\_val}$\rangle \}$
 		\Else
 			\State \codeF{toPut} $\leftarrow \emptyset$
 		\EndIf
-		\ForAll{keys k in $C_o.ppa \cup C_o.k\  \cup $ \codeF{toPut} in sorted order}
+		\ForAll{key k in $C_o.ppa \cup C_o.k\  \cup $ \codeF{toPut} in sorted order}
 			\If{$C_n$ is more than half full} 
 				\State $C_n$.\codeF{next} $\leftarrow$  new chunk 
 					\State \hspace{5mm} with 
 					\codeF{minKey}=$C$.\codeF{k}, \codeF{parent}=$C$, \codeF{status=infant} 
 				\State $C_n \leftarrow C_n.$\codeF{next}
 			\EndIf
-			\ForAll{versions $\langle$ ver, val $\rangle$ of k, in descending order}
+			\ForAll{version $\langle$ ver, val $\rangle$ of k, in descending order}
 				\State insert $\langle$ k, ver, val $\rangle$ to $C_n$
 				\If{ver $<$ \codeF{minVersion}} break \EndIf
 			\EndFor
@@ -606,11 +612,11 @@ The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{l
 	\Procedure{normalize}{$C$}	
 	\LineComment {\em 6. update index}
 	
-		\ForAll{chunks $c$ from \codeF{ro.first} to \codeF{last}}
+		\ForAll{chunk $c$ from \codeF{ro.first} to \codeF{last}}
 			\State \codeF{index.deleteConditional($c$.minKey, $c$)}
 	\EndFor
 	
-	\ForAll{chunks $c$ from $C_f$ to $C_n$}
+	\ForAll{chunk $c$ from $C_f$ to $C_n$}
 		\State load: \codeF{index.loadPrev($c$.minKey)}
 		\If {$\neg c$.\codeF{frozen}}
 			\If{$\neg$ \codeF{index.putConditional($c$.minKey, $c$)}}
@@ -620,7 +626,7 @@ The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{l
 	\EndFor		
 
 	\LineComment {\em 7. normalize}	
-	\ForAll{chunks $c$ from $C_f$ to $C_n$}
+	\ForAll{chunk $c$ from $C_f$ to $C_n$}
 		$c$.\codeF{status $\leftarrow$ normal}
 	\EndFor		
 	\EndProcedure
@@ -674,7 +680,7 @@ put checks its status and before the put publishes itself in PPA.
 To this end,
 rebalance traverses all PPA's entries and attempts to set their versions to frozen using CAS.
 If the CAS is successful, the put will fail to assign itself a version
-(Algorithm~\ref{alg:ops}, line~\ref{l:put-restart}). Otherwise, the put has already assigned its version, and
+(Algorithm~\ref{alg:ops}, line~\ref{l:put-frozen}). Otherwise, the put has already assigned its version, and
 rebalance can take it into account during cloning.
 \inote{
 As an optimization, it is possible to help pending puts perform the actual linked-list insertion

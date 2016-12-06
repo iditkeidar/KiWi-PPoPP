@@ -93,7 +93,7 @@ degrading performance as scan sizes increase. Additionally,
 \kary is unabalnced; its performance plunges when keys are inserted in sequential order
 (a common practical case).
 
-Some techniques offer generic add-ons to atomic \emph{snapshot iterator} in existing data structures~\cite{Petrank2013, wttm2016}.
+Some techniques offer generic add-ons to support atomic \emph{snapshot iterator} in existing data structures~\cite{Petrank2013, wttm2016}.
 However,~\cite{Petrank2013} supports only one scan at a time, and~\cite{wttm2016}'s throughput is lower than \kary's under low contention. 
 
 Most concurrent key-value maps do not support atomic  scans in any
@@ -102,18 +102,19 @@ Standard iterators implemented on such data structures provide non-atomic scans.
 concurrent skip-list~\cite{Fraser04}.
 %written by Doug Lea based on \cite{Fraser04} and released as part of the JavaTM SE 6 platform.
 
+\paragraph{Distributed KV-maps}
 Production systems often exploit persistent KV-stores like Google's Bigtable~\cite{Chang2008}, Apache HBase~\cite{ApacheHBase}, 
 and others~\cite{leveldb, RocksDB}. These technologies combine on-disk indices for persistence with an in-memory KV-map 
 for real-time data acquisition. They often support atomic scans, which can be non-blocking as long as they can be served from 
 RAM~\cite{GolanGueta2015}. However, storage access is a principal consideration in such systems, which makes their design 
-different from that of in-memory stores discussed in this paper.
+different from that of in-memory stores as discussed herein.
 
 %A host of research suggested solutions that support concurrent real-time updates and analytics. 
-MassTree~\cite{Mao:2012} presented a persistent B$^{+}$-tree designed for high concurrency on SMP 
+MassTree~\cite{Mao:2012} is a persistent B$^{+}$-tree designed for high concurrency on SMP 
 machines. It is not directly comparable to {\kiwi} as it does not support atomic snapshots, which is our key emphasis. 
 Sowell et. al.~\cite{Sowell:2012} presented Minuet -- a distributed in-memory data store with snapshot support. 
 In that context, snapshot creation is relatively expensive, which Minuet mitigates by sharing snapshots across queries. 
-{\kiwi} could provide a simpler and faster building block if used as Minuet's single-node implementation. 
+%{\kiwi} could provide a simpler and faster building block if used as Minuet's single-node implementation. 
 
 
 
