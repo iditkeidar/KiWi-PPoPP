@@ -78,7 +78,7 @@ In addition, at any point in time each key is covered by the range of at most on
 It is easy to show that a put operation always lands at a mutable chunk with a range that covers the key.
 Thus, rebalance operations divide puts of key $k$ into disjoint groups; one group per mutable epoch of each chunk covering the key.
 The following lemma 
-establishes the order among linearization points of puts within the same epoch.
+establishes the order among linearization points of puts within one epoch.
 \begin{lemma}
 \label{proof:put}
 Consider chunk $C$ accessible as of time $t_0$, key $k$ in the range of $C$, and an
