@@ -238,7 +238,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 %\Statex
 \Statex
 
-	\Procedure{helpPendingPuts}{$C$,fromKey, toKey}  \label{l:help-pending}
+	\Procedure{helpPendingPuts}{$C$, fromKey, toKey}  \label{l:help-pending}
 			\ForAll {entry $e$ in $C$.\codeF{ppa}} 				
 				\State \codeF{idx} $\leftarrow$ $e$.\codeF{idx} 
 				\If{ $C$.\codeF{k[idx].key} $\in$ [\codeF{fromKey, toKey}]} 
@@ -506,7 +506,7 @@ The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{l
 	\algrestore{kiwi}
 	\Procedure{rebalance}{$C$, put\_key, put\_val}	
 	\LineComment {\em 1. engage }
-	\State \codeF{tmp} $\leftarrow$ new rebalance object, initially $\langle $C$, $C$.\codeF{next} \rangle$
+	\State \codeF{tmp} $\leftarrow$ new rebalance object, with \codeF{first}=$C$, \codeF{next}=$C$.\codeF{next}
 	\State CAS($C$.\codeF{ro}, $\bot$, \codeF{tmp})
 	\State \codeF{ro} $\leftarrow$ $C$.\codeF{ro}
 	\State \codeF{last} $\leftarrow C$
@@ -524,7 +524,6 @@ The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{l
 			\State  CAS(\codeF{ro.next}, \codeF{next}, $\bot$) 	
 		\EndIf
 	\EndWhile
-
 	\LineComment {search for the last concurrently engaged chunk}
 	\While{\codeF{last.next.ro = ro}}
 		\State \codeF{last} $\leftarrow $ \codeF{last.next}
@@ -533,7 +532,6 @@ The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{l
 %	\ForAll{chunk $c$ from \codeF{last} s.t. $c$.\codeF{ro} $=$ \codeF{ro}}
 %		\State \codeF{last} $\leftarrow c$ 
 %	\EndFor
-
 	\LineComment {\em 2. freeze}
 	\ForAll{chunk $c$ from \codeF{ro.first} to \codeF{last}}
 		\State $c$.\codeF{status} $\leftarrow$ \codeF{frozen}
@@ -542,16 +540,14 @@ The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{l
 				\State CAS($e$, $\langle\bot$, \codeF{idx}$\rangle, \langle$\codeF{frozen, idx}$\rangle$)  
 			\EndFor		
 	\EndFor
-
 	\LineComment {\em 3. pick minimal version}
-
-	\State minVersion $\leftarrow$ GV 
+	\State \codeF{minVersion} $\leftarrow$ GV 
 	\ForAll{\codeF{psa[t] = $\langle$ver, seq, from, to$\rangle$}}
 		\If{\codeF{ro.first.minKey} $\le$ to $\wedge$
 			\State {\codeF{last.next.minKey} $>$ from} }
 			\If{ver=?} add { $\langle$t, seq, from, to$\rangle$} to \codeF{toHelp} 
 			\Else\  
-				minVersion $\leftarrow$ min(minVersion, ver)
+				\codeF{minVersion} $\leftarrow$ min(\codeF{minVersion}, ver)
 			\EndIf
 		\EndIf
 	\EndFor				
@@ -559,75 +555,71 @@ The two procedures make use of thread-local variables $C_f$, $C_n$, and \codeF{l
 		\State \codeF{ver} $ \leftarrow$ F\&I(GV)
 		\ForAll{$\langle$t, seq, from, to$\rangle \in$  \codeF{toHelp}}  
 				\State CAS(\codeF{psa[t]}, $\langle$?,\codeF{seq,from,to}$\rangle, \langle$\codeF{ver,seq,from,to}$\rangle$)
+				\State \codeF{minVersion} $\leftarrow$ min(\codeF{minVersion}, \codeF{psa[t].ver})
 		\EndFor
 	\EndIf
-
-
 %\Statex
-
-
 	\LineComment {\em 4. build}
 %	\LongLineComment{we assume the \# of versions is much smaller than the chunk size}
 	\State $C_f \leftarrow C_n \leftarrow$ new chunk  
 		\State \hspace{5mm} with \codeF{minKey}=$C$.\codeF{minKey}, \codeF{parent}=$C$, \codeF{status=infant} 
 	\ForAll{chunk $C_o$ from \codeF{ro.first} to \codeF{last}}
-		\If{$C_o$.\codeF{minKey} $<$ \codeF{put\_key} $<$ $C_o$.\codeF{next.minKey}}   
-			\State  \codeF{toPut} $\leftarrow \{ \langle$\codeF{put\_key},GV, \codeF{put\_val}$\rangle \}$
+		\If{$C_o$.\codeF{minKey} $\leq$ \codeF{put\_key} $<$ $C_o$.\codeF{next.minKey}}   
+			\State  \codeF{toPut} $\leftarrow \{ \langle$\codeF{put\_key}, GV, \codeF{put\_val}$\rangle \}$
 		\Else
 			\State \codeF{toPut} $\leftarrow \emptyset$
 		\EndIf
-		\ForAll{key k in $C_o.ppa \cup C_o.k\  \cup $ \codeF{toPut} in sorted order}
+		\ForAll{k in $C_o$.\codeF{ppa} $ \cup\ C_o$.\codeF{k} $ \cup $ \codeF{toPut} in ascending order}
 			\If{$C_n$ is more than half full} 
 				\State $C_n$.\codeF{next} $\leftarrow$  new chunk 
 					\State \hspace{5mm} with 
-					\codeF{minKey}=$C$.\codeF{k}, \codeF{parent}=$C$, \codeF{status=infant} 
+					\codeF{minKey}=\codeF{k}, \codeF{parent}=$C$, \codeF{status=infant} 
 				\State $C_n \leftarrow C_n.$\codeF{next}
 			\EndIf
 			\ForAll{version $\langle$ ver, val $\rangle$ of k, in descending order}
+				\If{val = $\bot$} break \Comment{eliminate tombstones} \EndIf
 				\State insert $\langle$ k, ver, val $\rangle$ to $C_n$
 				\If{ver $<$ \codeF{minVersion}} break \EndIf
 			\EndFor
 		\EndFor
 	\EndFor
 	\LineComment {\em 5. replace}
-	\State \codeF{last.mark} $\leftarrow$ true
-	\State $C_n$.\codeF{next} $\leftarrow$ \codeF{last.next}
-	\State \codeF{pred} $\leftarrow$ $C$'s predecessor
-	\If{CAS(\codeF{pred.next+mark}, $C$+false, $C_f$+false)}
-		\Comment{success}  
-		\State normalize($C$); return true    
-	\EndIf
-	\If{\codeF{pred.next.parent} = $C$} 
-		\Comment{someone else succeeded}
-		\State normalize($C$); return false 
-	\Else \Comment{insertion failed, help predecessor and retry}
-		\State rebalance(pred, $\bot, \bot$)
-		\State return rebalance($C$, put\_key, put\_val)
-	\EndIf 
+	\Do 
+		\State $C_n$.\codeF{next} $\leftarrow$ \codeF{last.next}
+	\doWhile{$\neg$ CAS(\codeF{last.next+mark}, $C_n$.\codeF{next}+false, $C_n$.\codeF{next}+true)}
+	\Do 
+		\State \codeF{pred} $\leftarrow$ $C$'s predecessor
+		\If{CAS(\codeF{pred.next+mark}, $C$+false, $C_f$+false)}
+			\Comment{success}  
+			\State normalize($C$)
+			\State return true    
+		\EndIf
+		\If{\codeF{pred.next.parent} = $C$} 
+			\Comment{someone else succeeded}
+			\State normalize($C$)
+			\State return false 
+		\EndIf 
+		\State rebalance(pred, $\bot, \bot$) \Comment{insertion failed, help predecessor}
+	\doWhile{true} \Comment{ and retry}
 
-	\EndProcedure
-	
-	\Statex
-	
+	\EndProcedure	
+	\Statex	
 	\Procedure{normalize}{$C$}	
 	\LineComment {\em 6. update index}
 	
-		\ForAll{chunk $c$ from \codeF{ro.first} to \codeF{last}}
+		\ForAll{chunk $c$ from $C$.\codeF{ro.first} to \codeF{last}}
 			\State \codeF{index.deleteConditional($c$.minKey, $c$)}
 	\EndFor
 	
 	\ForAll{chunk $c$ from $C_f$ to $C_n$}
-		\State load: \codeF{index.loadPrev($c$.minKey)}
-		\If {$\neg c$.\codeF{frozen}}
-			\If{$\neg$ \codeF{index.putConditional($c$.minKey, $c$)}}
-				\State goto load 
-			\EndIf 
-		\EndIf
+		\Do
+			\State \codeF{prev} $\leftarrow$ \codeF{index.loadPrev($c$.minKey)}
+			\If {$c$.\codeF{frozen}} break \EndIf 
+		\doWhile{$\neg$ \codeF{index.putConditional($c$.minKey, \codeF{prev}, $c$)}}
 	\EndFor		
-
 	\LineComment {\em 7. normalize}	
 	\ForAll{chunk $c$ from $C_f$ to $C_n$}
-		$c$.\codeF{status $\leftarrow$ normal}
+		\State CAS($c$.\codeF{status}, \codeF{infant}, \codeF{normal})
 	\EndFor		
 	\EndProcedure
 		\end{algorithmic}
@@ -713,13 +705,13 @@ either way, it uses the version written by some successful CAS (line~\ref{l:scan
 
 The next stage creates new chunks to replace the engaged ones. It traverses the list of engaged chunks from \code{ro.first} to \code{last}.
 In each chunk, it collects data both from the intra-chunk linked list and from the PPA. Additionally, 
-the key and val of the put that triggered the rebalance is included in the appropriate chunk. 
+the key and value of the put that triggered the rebalance is included in the appropriate chunk. 
+Versions associated with deletions (tombstones) are discarded along with all older versions of the same key.
 All versions of a key that are older than the last version that does not exceed \code{minVersion} can be safely discarded, whereas
 newer versions are cloned into new chunks. New chunks are created one at a time, as infants, with the trigger chunk as their parent.
 %, and the intra-chunk linked list sorted.
-
-Keys are added, in sorted order, to a new chunk $C$ until it is roughly half full, at which point a new chunk $C'$ is created
-and $C.\code{next}$ is set to $C'$. (In case the last chunk is too sparse, for example, only a quarter full, it is discarded and its keys are moved to the  penultimate chunk).
+Keys are added, in sorted order, to a new chunk $C_n$ until it is roughly half full, at which point a new chunk $C'$ is created
+and $C_n.\code{next}$ is set to $C'$. (In case the last chunk is too sparse, for example, only a quarter full, it is discarded and its keys are moved to the  penultimate chunk).
 We assume here that the number of versions is much smaller than the chunk size.
 
 \paragraph{5. Data structure update.}
@@ -753,7 +745,9 @@ Such an index can be implemented in non-blocking ways using low-level atomic ope
 we instead use locks.
 
 To index a new chunk $C$, we first call \code{loadPrev($C$.minKey)}, then verify that $C$ is not frozen, and if so,
-add it conditionally to the index. If the conditional put fails and yet the chunk is not frozen, the put is retried.
+add it conditionally to the index. 
+Since chunks are frozen before they are unindexed, this check ensures that we do not re-index an unindexed chunk.
+If the conditional put fails and yet the chunk is not frozen, the put is retried.
 Index removals call \code{deleteConditional(C.minKey,C)}.
 
 \paragraph{7. Normalization.}
