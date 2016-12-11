@@ -9,7 +9,7 @@
 \usepackage[noend]{algpseudocode}
 \usepackage{subcaption}
 \usepackage{xcolor}
-\usepackage[pdftex]{graphicx}
+%\usepackage[pdftex]{graphicx}
 \usepackage{tikz}
 \usepackage{arydshln}
 \usepackage{acmcopyright}
@@ -50,6 +50,16 @@
 
 
 \begin{document}
+%\remove{
+\CopyrightYear{2017}
+\setcopyright{acmcopyright}
+\conferenceinfo{PPoPP '17,}{February 04-08, 2017, Austin, TX, USA}
+%\isbn{978-1-4503-4493-7/17/02}\acmPrice{\$15.00}
+%\doi{http://dx.doi.org/10.1145/3018743.3018761}
+%\crdata{10.1145/3018743.3018761}
+\copyrightdata{978-1-4503-4493-7/17/02}
+\doi{3018743.3018761}
+%}
 
 \special{papersize=8.5in,11in}
 \setlength{\pdfpageheight}{\paperheight}
@@ -63,6 +73,7 @@
 
 \renewcommand{\thefootnote}{\fnsymbol{footnote}}
 
+%\remove{
 \authorinfo{{Dmitry Basin\footnotemark[1]}\and {Edward Bortnikov\footnotemark[1]}\and Anastasia Braginsky\footnotemark[1]\and
 Guy Golan-Gueta\footnotemark[2]\\ \and   {Eshcar Hillel\footnotemark[1]} \and Idit Keidar\footnotemark[3]\footnotemark[1] \and 
 Moshe Sulamy\footnotemark[4]}
@@ -70,14 +81,24 @@ Moshe Sulamy\footnotemark[4]}
 \and \footnotemark[4]Tel Aviv University}
 {\{dbasin,ebortnik,anastas,eshcar\}@yahoo-inc.com \and ggolangueta@vmware.com
  \and idish@ee.technion.ac.il \and moshe.sulamy@cs.tau.ac.il}
+%}
 
+\remove{
+\numberofauthors{7}
+\author{
+\alignauthor
+Dmitry Basin\footnotemark[1]\\
+\alignauthor
+Edward Bortnikov\footnotemark[1]\\
+\alignauthor
+Anastasia Braginsky\footnotemark[1]\\
+\and
+\alignauthor
+\footnotemark[1]Yahoo Research, Israel 
+}
+}
 \date{}
 
-\CopyrightYear{2017}
-\setcopyright{acmcopyright}
-\conferenceinfo{PPoPP '17,}{February 04-08, 2017, Austin, TX, USA}
-%\isbn{978-1-4503-4493-7/17/02}\acmPrice{\$15.00}
-%\doi{http://dx.doi.org/10.1145/3018743.3018761}
 
 \maketitle
 
@@ -159,9 +180,10 @@ Prior results~\cite{GolanGueta2015} highlighted that the overall  performance of
 improving  concurrency at the memory part.%in-memory KV-store.
 }
 
+\bibliographystyle{abbrv}
 \bibliography{ref}
 %\bibliographystyle{abbrv}
-\bibliographystyle{abbrvnat}
+%\bibliographystyle{abbrvnat}
 %
 
 \end{document}
