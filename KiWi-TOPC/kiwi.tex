@@ -1,8 +1,6 @@
-\documentclass[10pt,numbers]{sigplanconf}
-%\documentclass[10pt,twocolumn]{article}
-\usepackage{times}
+\documentclass[acmsmall, review]{acmart}
 \usepackage{url}                  % format URLs
-\usepackage[colorlinks=true,allcolors=blue,breaklinks,draft=false]{hyperref}   % hyperlinks, including DOIs and URLs in bibliography
+%\usepackage[colorlinks=true,allcolors=blue,breaklinks,draft=false]{hyperref}   % hyperlinks, including DOIs and URLs in bibliography
 \usepackage{amsmath}
 \usepackage{xspace}
 \usepackage{algorithm}
@@ -12,7 +10,7 @@
 %\usepackage[pdftex]{graphicx}
 \usepackage{tikz}
 \usepackage{arydshln}
-\usepackage{acmcopyright}
+%\usepackage{acmcopyright}
 
 
 \usepackage{pifont}
@@ -23,84 +21,44 @@
 
 \usepackage{pgfplots}
 
-%\usepackage[letterpaper,margin=0.75in,top=1in,bottom=1in]{geometry}
 
 \input{plotsStyle}
 \input{macros}
 
 \algdef{SE}[DOWHILE]{Do}{doWhile}{\algorithmicdo}[1]{\algorithmicwhile\ #1}%
-%%% Some space-saving stuff added by Idit
-
-\usepackage{etoolbox}
-\makeatletter
-\patchcmd{\ALG@doentity}{\item[]\nointerlineskip}{}{}{}
-\makeatother
-
-\makeatletter
-\renewcommand{\paragraph}{%
-  \@startsection{paragraph}{4}%
-  {\z@}{2.25ex \@plus 1ex \@minus .2ex}{-1em}%
-  {\normalfont\normalsize\bfseries}%
-}
-\makeatother
-
-%%% End space saving stuff
-
-
 
 
 \begin{document}
-%\remove{
-\CopyrightYear{2017}
-\setcopyright{acmcopyright}
-\conferenceinfo{PPoPP '17,}{February 04-08, 2017, Austin, TX, USA}
-%\isbn{978-1-4503-4493-7/17/02}\acmPrice{\$15.00}
-%\doi{http://dx.doi.org/10.1145/3018743.3018761}
-%\crdata{10.1145/3018743.3018761}
-\copyrightdata{978-1-4503-4493-7/17/02}
-\doi{3018743.3018761}
-%}
 
-\special{papersize=8.5in,11in}
-\setlength{\pdfpageheight}{\paperheight}
-\setlength{\pdfpagewidth}{\paperwidth}
+\setcopyright{none}
+\acmJournal{TOPC}
 
-\onecolumn
 
 \title{\kiwi: A Key-Value Map for Scalable Real-Time Analytics}
 
-\twocolumn
 
-\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+\author{Dmitry Basin}
+%\affiliation{Yahoo Research, Oath, Haifa, Israel}  
+\author{Edward Bortnikov}
+%\affiliation{Yahoo Research, Oath, Haifa, Israel}  
+\author{Anastasia Braginsky}
+\affiliation{Yahoo Research, Oath, Haifa, Israel}  
+\author{Guy Golan-Gueta} 
+\affiliation{VMWare Research Group, Tel Aviv, Israel} 
+\author{Eshcar Hillel}
+\affiliation{Yahoo Research, Oath, Haifa, Israel}   
+\author{Idit Keidar}
+\affiliation{Technion and Yahoo Research, Oath, Haifa, Israel}   
+\author{Moshe Sulamy}
+\affiliation{Tel Aviv University, Tel Aviv, Israel}
 
-%\remove{
-\authorinfo{{Dmitry Basin\footnotemark[1]}\and {Edward Bortnikov\footnotemark[1]}\and Anastasia Braginsky\footnotemark[1]\and
-Guy Golan-Gueta\footnotemark[2]\\ \and   {Eshcar Hillel\footnotemark[1]} \and Idit Keidar\footnotemark[3]\footnotemark[1] \and 
-Moshe Sulamy\footnotemark[4]}
-{\footnotemark[1]Yahoo Research, Israel \and \footnotemark[2]VMWare Research, Israel \and \footnotemark[3]Technion, Israel
-\and \footnotemark[4]Tel Aviv University}
-{\{dbasin,ebortnik,anastas,eshcar\}@yahoo-inc.com \and ggolangueta@vmware.com
- \and idish@ee.technion.ac.il \and moshe.sulamy@cs.tau.ac.il}
-%}
 
-\remove{
-\numberofauthors{7}
-\author{
-\alignauthor
-Dmitry Basin\footnotemark[1]\\
-\alignauthor
-Edward Bortnikov\footnotemark[1]\\
-\alignauthor
-Anastasia Braginsky\footnotemark[1]\\
-\and
-\alignauthor
-\footnotemark[1]Yahoo Research, Israel 
-}
-}
+
 \date{}
 
 
 \maketitle
+ \renewcommand{\shortauthors}{Basin et al.}
 
 \begin{abstract}
 Modern big data processing platforms employ huge in-memory \emph{key-value} (KV) maps.
@@ -140,17 +98,7 @@ unbalanced ones in case update order is not random.
 }
 
 \end{abstract}
-%\bigskip
-%\bigskip
-%\centerline{Corresponding author: Anastasia Braginsky aGInastas@yahoo-inc.com}
-%\noindent
-%{\bf
-%\centerline{The paper is eligible for the best student paper award.}
-%\centerline{Moshe Sulamy is a full-time PhD student in Tel Aviv University\footnote{
-%This work was done in part while interning with Yahoo Labs, Haifa. }.}
-%}
 
-%\end{titlepage}
 
 \renewcommand{\thefootnote}{\arabic{footnote}}
 
@@ -160,7 +108,7 @@ unbalanced ones in case update order is not random.
 \label{sec:related}
 \input{related}
 
-\input{algorithm1}
+\input{algorithm}
 \input{proof1}
 ----------------------------------------------
 \input{proof}
