@@ -1,0 +1,120 @@
+
+\paragraph{Techniques.}
+\kiwi\ employs a host of techniques for efficient synchronization, many of which have been used in similar contexts before.
+Multi-versioning~\cite{BHG:Book87}
+%\todo{cite some DB source}
+is a classical database approach for allowing atomic scans in the presence of updates,
+and has also been used  in the context of transactional memory~\cite{mv-stm-chapter}. 
+In contrast to standard multi-versioning, \kiwi\ does not create a new version for each update, 
+and leaves version numbering to scans rather than updates.
+
+Braginsky and Petrank used lock-free chunks  for efficient memory management
+in the context of non-blocking linked lists~\cite{LinkedListBP} and B$^{+}$trees~\cite{BraginskyP2012}.
+However, these data structures do not support atomic scans as \kiwi\ does.
+\inote{
+%% Idit: omitted below, does not compare the current work to previous work
+There, list elements are grouped into chunks for better cache locality and list traversal performance. The chunks maintain the predetermined size boundaries.
+The \emph{freeze} and \emph{restructure} lock-free techniques are used in \cite{LinkedListBP} for chunks exchange,
+where freezing makes a chunk immutable and notifies threads that the part of the data structure they are currently using is obsolete.
+%The similar lock-free chunk mechanism was later used by the same authors for building lock-free, balanced, B$^{+}$-tree~\cite{BraginskyP2012}.
+}
+
+\kiwi\ separates index maintenance from the core data store, based  on the observation that index updates are only needed for efficiency and not for correctness, and hence can be done lazily. This observation was previously leveraged, e.g.,
+for a concurrent skip list, where only the underlying linked list is updated as part of the atomic operation and other links are updated lazily~\cite{bpc16,HerlihyLLS2007,HerlihyS2008,Spiegelman:2016}.
+%For providing wait-free scans, we rely on the standard approach of helping~\cite{}, which has been used extensively in the past.
+
+\inote{
+%% Idit: omitted below, irrelevant
+Snapshot \cite{Afek93} is a possible approach for implementing range queries. The majority of snapshot algorithms, e.g. \cite{Fatourou07,Jayanti05}, have theoretical impact.
+Their API is limited (no read), and it is hard to use them to efficiently implement non-blocking range queries.
+}
+
+
+\begin{table*}[ht]
+\codesize
+\begin{center}
+\begin{tabular}{|l|cccc:cc|}
+
+  \hline
+  {\bfseries } & \multicolumn{4}{c:}{\bfseries scans}  & \multicolumn{2}{c|}{\bfseries performance} \\
+  {\bfseries } & {\bfseries atomic} & {\bfseries multiple } & {\bfseries partial} & {\bfseries wait-free } & {\bfseries  balanced} & {\bfseries fast puts} \\
+%  \hline\hline
+\hline
+
+   Ctrie \cite{Prokopec12}                      & $\checkmark$ & $\checkmark$ & \xmark              & \xmark           & $\checkmark$ & \xmark \\
+
+  \snaptree\ \cite{BronsonCCO2010}    & $\checkmark$ & $\checkmark$ &$\checkmark$   & \xmark            & $\checkmark$ & \xmark \\
+
+  \kary\ \cite{BrownA12}                       & $\checkmark$  & $\checkmark$ & $\checkmark$ & \xmark & \xmark  &$\checkmark$ \\
+
+%  BW-Tree \cite{Lomet13}  & \xmark & $\checkmark$ & $\checkmark$ & \xmark            & $\checkmark$ \\
+ % \hline
+
+  {snapshot iterator \cite{Petrank2013}} & $\checkmark$ & \xmark           & \xmark & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+
+\skiplist\ \cite{JavaConcurrentSkipList} & \xmark          & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+
+ % \hline
+{\bfseries \kiwi} & \ding{52} & \ding{52} & \ding{52} & \ding{52} & \ding{52} & \ding{52} \\
+  \hline
+\end{tabular}
+\end{center}
+\caption{Comparison of concurrent data structures implementing scans. For range queries, support for multiple partial scans is necessary.
+Fast puts do not hamper updates (e.g., by cloning nodes) when scans are ongoing.}
+\label{tab:overview}
+\end {table*}
+
+\paragraph{Concurrent maps supporting scans.}
+Table~\ref{tab:overview} summarizes the properties of  state-of-the-art concurrent data structures that support scans, and compares them to {\kiwi}.
+\snaptree~\cite{BronsonCCO2010} and Ctrie  \cite{Prokopec12} use lazy copy-on-write for cloning the  data structure in order to
+support snapshots.
+This approach severely hampers put operations when scans are onging,
+as confirmed by our empirical results for \snaptree, which was shown to outperform Ctrie. Moreover,
+in Ctrie,  partial snapshots cannot be obtained.
+
+
+
+\inote{
+\snaptree~\cite{BronsonCCO2010} is a binary search tree using lazy copy-on-write to support snapshots. It
+uses locks to clone the entire data structure to support range queries. This approach does not provide progress guarantees,
+and may result in excessive duplication of the structure. Moreover, with this approach, put operations are severly hampered by
+the support for snapshots, as confirmed by our empirical results below.
+Ctrie  \cite{Prokopec12}  is a non-blocking concurrent hash trie that also uses a lazy copy-on-write scheme
+that delays puts in the presence of scans. However,
+in Ctrie, keys are ordered by their hashes, and so scans do not offer range queries on the original key space.
+%is hard to efficiently implement range queries.
+%%To do so, one must iterate over all keys in the snapshot.
+}
+
+Brown and Avni \cite{BrownA12} introduced range queries for the k-ary search tree \cite{kary}.
+Their scans are atomic and lock-free, and outperform those  of Ctrie and \snaptree\ in most scenarios.
+However, each conflicting put restarts the scan,
+degrading performance as scan sizes increase. Additionally,
+\kary is unabalnced; its performance plunges when keys are inserted in sequential order
+(a common practical case).
+
+Some techniques offer generic add-ons to support atomic \emph{snapshot iterator} in existing data structures~\cite{Petrank2013, wttm2016}.
+However,~\cite{Petrank2013} supports only one scan at a time, and~\cite{wttm2016}'s throughput is lower than \kary's under low contention. 
+
+Most concurrent key-value maps do not support atomic  scans in any
+way~\cite{JavaConcurrentSkipList,LinkedListBP,BraginskyP2012,Hendler04,NatarajanM2014,Kogan12,Lomet13}.
+Standard iterators implemented on such data structures provide non-atomic scans. Among these, we compare \kiwi\ to the standard Java 
+concurrent skip-list~\cite{Fraser04}.
+%written by Doug Lea based on \cite{Fraser04} and released as part of the JavaTM SE 6 platform.
+
+\paragraph{Distributed KV-maps}
+Production systems often exploit persistent KV-stores like Google's Bigtable~\cite{Chang2008}, Apache HBase~\cite{ApacheHBase}, 
+and others~\cite{leveldb, RocksDB}. These technologies combine on-disk indices for persistence with an in-memory KV-map 
+for real-time data acquisition. They often support atomic scans, which can be non-blocking as long as they can be served from 
+RAM~\cite{GolanGueta2015}. However, storage access is a principal consideration in such systems, which makes their design 
+different from that of in-memory stores as discussed herein.
+
+%A host of research suggested solutions that support concurrent real-time updates and analytics. 
+MassTree~\cite{Mao:2012} is a persistent B$^{+}$-tree designed for high concurrency on SMP 
+machines. It is not directly comparable to {\kiwi} as it does not support atomic snapshots, which is our key emphasis. 
+Sowell et. al.~\cite{Sowell:2012} presented Minuet -- a distributed in-memory data store with snapshot support. 
+In that context, snapshot creation is relatively expensive, which Minuet mitigates by sharing snapshots across queries. 
+%{\kiwi} could provide a simpler and faster building block if used as Minuet's single-node implementation. 
+
+
+

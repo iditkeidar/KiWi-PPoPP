@@ -1,0 +1,53 @@
+\begin{tikzpicture}
+\begin{axis}[
+	rangestyle,
+	ylabel = { million ops/sec \\ (with background scans)},
+	xlabel= {\textbf{(a)}\\ \\ \textbf{scan size} \\},
+	title= {\textbf{multiple scan sizes}}
+]
+\addplot [black,mark=square*] table [x={ranges}, y={KiWi}]
+{results/puts_mixed_by_range.txt}; 
+\addplot [orange,mark=diamond] table [x={ranges}, y={KAry}]
+{results/puts_mixed_by_range.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={ranges}, y={JavaSkipList}]
+{results/puts_mixed_by_range.txt}; 
+\addplot [magenta,mark=+] table [x={ranges}, y={SnapTree}]
+{results/puts_mixed_by_range.txt};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[
+	mystyle16,
+	sPut,
+	xlabel= {\textbf{(b)}\\ \\ \textbf{threads} \\},
+	title={\textbf{scan size=2}}
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/s_put2.txt}; 
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/s_put2.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/s_put2.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/put_scan2.txt};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[
+	mystyle16,
+	unbalanced,
+	xlabel= {\textbf{(c)}\\ \\ \textbf{threads} \\},
+	title={\textbf{scan size=32K}}
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/s_put32K.txt};
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/s_put32K.txt};  
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/s_put32K.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/s_put32K.txt};
+\end{axis}
+\end{tikzpicture}
+
+\ref{sPutLegend}

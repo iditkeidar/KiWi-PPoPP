@@ -1,0 +1,197 @@
+\documentclass[10pt,numbers]{sigplanconf}
+%\documentclass[10pt,twocolumn]{article}
+\usepackage{times}
+\usepackage{url}                  % format URLs
+\usepackage[colorlinks=true,allcolors=blue,breaklinks,draft=false]{hyperref}   % hyperlinks, including DOIs and URLs in bibliography
+\usepackage{amsmath}
+\usepackage{xspace}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{subcaption}
+\usepackage{xcolor}
+%\usepackage[pdftex]{graphicx}
+\usepackage{tikz}
+\usepackage{arydshln}
+\usepackage{acmcopyright}
+
+
+\usepackage{pifont}
+\usepackage{amssymb}
+
+%\usepackage{titlesec}
+\usepackage{multicol}
+
+\usepackage{pgfplots}
+
+%\usepackage[letterpaper,margin=0.75in,top=1in,bottom=1in]{geometry}
+
+\input{plotsStyle}
+\input{macros}
+
+\algdef{SE}[DOWHILE]{Do}{doWhile}{\algorithmicdo}[1]{\algorithmicwhile\ #1}%
+%%% Some space-saving stuff added by Idit
+
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd{\ALG@doentity}{\item[]\nointerlineskip}{}{}{}
+\makeatother
+
+\makeatletter
+\renewcommand{\paragraph}{%
+  \@startsection{paragraph}{4}%
+  {\z@}{2.25ex \@plus 1ex \@minus .2ex}{-1em}%
+  {\normalfont\normalsize\bfseries}%
+}
+\makeatother
+
+%%% End space saving stuff
+
+
+
+
+\begin{document}
+%\remove{
+\CopyrightYear{2017}
+\setcopyright{acmcopyright}
+\conferenceinfo{PPoPP '17,}{February 04-08, 2017, Austin, TX, USA}
+%\isbn{978-1-4503-4493-7/17/02}\acmPrice{\$15.00}
+%\doi{http://dx.doi.org/10.1145/3018743.3018761}
+%\crdata{10.1145/3018743.3018761}
+\copyrightdata{978-1-4503-4493-7/17/02}
+\doi{3018743.3018761}
+%}
+
+\special{papersize=8.5in,11in}
+\setlength{\pdfpageheight}{\paperheight}
+\setlength{\pdfpagewidth}{\paperwidth}
+
+\onecolumn
+
+\title{\kiwi: A Key-Value Map for Scalable Real-Time Analytics}
+
+\twocolumn
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+
+%\remove{
+\authorinfo{{Dmitry Basin\footnotemark[1]}\and {Edward Bortnikov\footnotemark[1]}\and Anastasia Braginsky\footnotemark[1]\and
+Guy Golan-Gueta\footnotemark[2]\\ \and   {Eshcar Hillel\footnotemark[1]} \and Idit Keidar\footnotemark[3]\footnotemark[1] \and 
+Moshe Sulamy\footnotemark[4]}
+{\footnotemark[1]Yahoo Research, Israel \and \footnotemark[2]VMWare Research, Israel \and \footnotemark[3]Technion, Israel
+\and \footnotemark[4]Tel Aviv University}
+{\{dbasin,ebortnik,anastas,eshcar\}@yahoo-inc.com \and ggolangueta@vmware.com
+ \and idish@ee.technion.ac.il \and moshe.sulamy@cs.tau.ac.il}
+%}
+
+\remove{
+\numberofauthors{7}
+\author{
+\alignauthor
+Dmitry Basin\footnotemark[1]\\
+\alignauthor
+Edward Bortnikov\footnotemark[1]\\
+\alignauthor
+Anastasia Braginsky\footnotemark[1]\\
+\and
+\alignauthor
+\footnotemark[1]Yahoo Research, Israel 
+}
+}
+\date{}
+
+
+\maketitle
+
+\begin{abstract}
+Modern big data processing platforms employ huge in-memory \emph{key-value} (KV) maps.
+Their applications simultaneously drive high-rate data ingestion \emph{and} large-scale analytics.
+These two scenarios expect KV-map implementations that scale well with both real-time updates
+and large atomic scans triggered by range queries.
+%However, today's state-of-the art concurrent KV-maps  fall short of satisfying these requirements.
+% -- they either provide only limited or non-atomic scans,  or severely hamper updates when scans are ongoing.
+
+We present {\kiwi}, the first atomic KV-map to efficiently support simultaneous  large scans and real-time access.
+The  key to achieving this is treating scans as first class citizens, and organizing the data structure around them.
+%whereas most existing concurrent KV-maps do not provide
+%atomic scans, and some others add them to existing maps without rethinking the design anew.
+\kiwi\ provides {wait-free} scans,
+%which is important for avoiding livelock and wasted work,
+whereas its put operations are lightweight and lock-free.
+It optimizes memory management jointly with  data structure access.
+%We prove \kiwi's correctness and also implement it
+We implement \kiwi\
+and compare it to state-of-the-art solutions.
+%our evaluation shows that \kiwi\ is significantly faster than the state-of-the-art.
+Compared to other  KV-maps providing atomic scans,
+%in workloads with long scans and concurrent writes,
+\kiwi\ performs either long scans or concurrent puts an order of magnitude faster. Its   scans are twice as fast as  \emph{non-atomic} ones implemented
+via iterators in the Java skiplist.
+
+
+\inote{
+A number of novel aspects of the {\kiwi} algorithm make it particularly well-suited for today's data processing systems.
+First, it provides wait-free scans, which is important for avoiding livelock and wasted work, given that snapshot scans are often long.
+On the other hand, given that updates are short, \kiwi\ opts to make them lock-free rather than wait-free, since restarts due to conflicts
+are practically rare and waste little work.  Second, {\kiwi} uses multi-versioning, but keeps old data versions selectively,
+only as needed for ongoing scans, and furthermore keeps the updates light-weight by deferring version management to scans.
+Third, the {\kiwi} algorithm optimizes memory management and reclamation jointly with the optimization of data structure access.
+Finally, {\kiwi} implements a balanced data structure, which allows operations to run orders of magnitude faster than
+unbalanced ones in case update order is not random.
+}
+
+\end{abstract}
+%\bigskip
+%\bigskip
+%\centerline{Corresponding author: Anastasia Braginsky aGInastas@yahoo-inc.com}
+%\noindent
+%{\bf
+%\centerline{The paper is eligible for the best student paper award.}
+%\centerline{Moshe Sulamy is a full-time PhD student in Tel Aviv University\footnote{
+%This work was done in part while interning with Yahoo Labs, Haifa. }.}
+%}
+
+%\end{titlepage}
+
+\renewcommand{\thefootnote}{\arabic{footnote}}
+
+\input{intro}
+
+\section{Related Work}
+\label{sec:related}
+\input{related}
+
+\input{algorithm1}
+\input{proof1}
+----------------------------------------------
+\input{proof}
+---------------------------------------------
+\input{eval}
+
+\section{Discussion}
+\label{sec:disc}
+
+We presented {\kiwi}, a KV-map tailored for real-time analytics applications. \kiwi\ is the first
+concurrent KV-map to support high-performance atomic scans simultaneously with real-time updates of the data.
+In contrast to traditional approaches, {\kiwi} shifts the synchronization
+overhead from puts to scans, and offers lock-free puts and wait-free gets and scans.
+We demonstrated {\kiwi}'s significant performance gains over state-of-the-art KV-map
+implementations that support atomic scans. 
+
+\inote{
+Future work could apply {\kiwi} as the in-memory part of a NoSQL KV-store, e.g., HBase~\cite{ApacheHBase}.
+Prior results~\cite{GolanGueta2015} highlighted that the overall  performance of such systems can be boosted by
+improving  concurrency at the memory part.%in-memory KV-store.
+}
+
+\bibliographystyle{abbrv}
+\bibliography{ref}
+%\bibliographystyle{abbrv}
+%\bibliographystyle{abbrvnat}
+\appendix
+\input{app-proof}
+
+\end{document}
+
+
+
+

@@ -1,0 +1,56 @@
+\begin{tikzpicture}
+\begin{axis}[
+      	legend columns=1,
+	legend entries={random, drop-half},
+	legend style={at={(0.5,-0.5)},anchor=north, font=\tiny},
+	chunksStyle,
+	title={chunks dynamics},
+	ylabel = {thousands of chunks},
+%	xlabel style={align=right}
+	xlabel = {(a) $10^6$ operations}
+]
+\addplot [orange, style={line width=1pt}] table [x={operations}, y={random}]
+{results/chunks.txt}; 
+\addplot [black, style={line width=1pt}] table [x={operations}, y={drophalf}]
+{results/chunks.txt}; 
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[
+	legend columns=2,
+	legend entries={total, batched , duplicates, $\bot$ markers},
+	legend style={at={(0.5, -0.5)}, anchor=north, font=\tiny},
+	chunksUtilStyle,
+	title={random fill},
+	ylabel = {thousands of items \\ per chunk},
+	xlabel = {(b) $10^6$ operations}	 
+]
+\addplot [brown!60!black, style={line width=1pt}] table [x={operations}, y={r_total}]
+{results/chunks.txt}; 
+\addplot [green!60!black, style={line width=1pt}] table [x={operations}, y={r_sorted}]
+{results/chunks.txt}; 
+\addplot [red, style={line width=1pt}] table [x={operations}, y={r_dup}]
+{results/chunks.txt}; 
+\addplot [blue, style={line width=1pt}] table [x={operations}, y={r_null}]
+{results/chunks.txt}; 
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[
+	legend columns=2,
+	legend entries={total, batched , duplicates, $\bot$ markers},
+	legend style={at={(0.5, -0.5)}, anchor=north, font=\tiny},
+	chunksUtilStyle,
+	title={drop-half fill},
+	xlabel = {(c) $10^6$ operations}
+]
+\addplot [brown!60!black, style={line width=1pt}] table [x={operations}, y={dh_total}]
+{results/chunks.txt}; 
+\addplot [green!60!black, style={line width=1pt}] table [x={operations}, y={dh_sorted}]
+{results/chunks.txt}; 
+\addplot [red, style={line width=1pt}] table [x={operations}, y={dh_dup}]
+{results/chunks.txt}; 
+\addplot [blue, style={line width=1pt}] table [x={operations}, y={dh_null}]
+{results/chunks.txt}; 
+\end{axis}
+\end{tikzpicture}
