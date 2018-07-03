@@ -2,7 +2,7 @@
 \begin{axis}[
 	mystyle16,
 	unbalanced,
-	title= {\small{(a) Scan 32K keys (parallel put), 1M}},
+	title= {\small{(a) Scan 32K keys, dataset 1M}},
 	ylabel = { Scan throughput, M keys/sec},
 	xlabel= {Scan threads\\}
 ]
@@ -20,7 +20,7 @@
 \begin{tikzpicture}
 \begin{axis}[
 	rangestyle_ext,
-	title={\small{ (b) Scan 16 threads (parallel put), 1M}},
+	title={\small{ (b) Scan 16 threads, dataset 1M}},
 	xlabel= {Scan range (keys)\\}
 ]
 \addplot [black,mark=square*] table [x={ranges}, y={KiWi}]
@@ -36,7 +36,7 @@
 \begin{tikzpicture}
 \begin{axis}[
 	rangestyle_ext,
-	title={\small{ (c) Scan 16 threads (parallel put), 10M}},
+	title={\small{ (c) Scan 16 threads, dataset 10M}},
 	xlabel= {Scan range (keys)\\}
 ]
 \addplot [black,mark=square*] table [x={ranges}, y={KiWi}]
@@ -56,7 +56,7 @@
 	unbalanced,
 	xlabel= { Put threads\\},
 	ylabel = { Put throughput, M keys/sec },
-	title={\small{(d) Put (parallel scan 32K keys), 1M}}
+	title={\small{(d) Put scalability, dataset 1M}}
 ]
 \addplot [black,mark=square*] table [x={threads}, y={KiWi}]
 {results/s_put32K.txt};
@@ -73,7 +73,7 @@
 \begin{axis}[
 	rangestyle_ext,
 	xlabel= {Scan range (keys)\\},
-	title= {\small{(e) Put 16 threads (parallel scan), 1M}}
+	title= {\small{(e) Put 16 threads, dataset 1M}}
 ]
 \addplot [black,mark=square*] table [x={ranges}, y={KiWi}]
 {results/puts_mixed_by_range.txt}; 
@@ -89,7 +89,7 @@
 \begin{axis}[
 	rangestyle_ext,
 	xlabel= {Scan range (keys)\\},
-	title= {\small{(f) Put 16 threads (parallel scan), 10M}}
+	title= {\small{(f) Put 16 threads, dataset 10M}}
 ]
 \addplot [black,mark=square*] table [x={ranges}, y={KiWi}]
 {results/puts_bg_scans_by_range_10M.txt}; 
