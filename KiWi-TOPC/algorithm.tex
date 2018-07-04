@@ -164,7 +164,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 		\If{\codeF{checkRebalance($C$, \codeF{key, val}})}   \label{l:put-rebalance0}
 			 return \Comment{required rebalance completed the put}
 		\EndIf
-		\State \codeF{j} $\leftarrow$ F\&A($C$.\codeF{vCounter, val.size}) \Comment{allocate place for value}
+		\State \codeF{j} $\leftarrow$ F\&A($C$.\codeF{vCounter, val.size}) \Comment{allocate place for value} \label{l:put-cas-j}
 		\State \codeF{i} $\leftarrow$ F\&I($C$.\codeF{kCounter}) \Comment{allocate cell in linked list}
 		\If{ \codeF{j} $\geq$ \codeF{$C$.v.size} $\vee$  \codeF{i} $\geq$ \codeF{$C$.k.size}} 
 			\If {$\neg$\codeF{rebalance($C$, \codeF{key, val})}} \codeF{put(key, val)}  \EndIf 
@@ -292,7 +292,7 @@ Finally, the PPA version is cleared (line \ref{l:put-clean}).
 			\ForAll {entry $e$ in $C$.\codeF{ppa}} 				
 				\State \codeF{idx} $\leftarrow$ $e$.\codeF{idx} 
 				\If{ $C$.\codeF{k[idx].key} $\in$ [\codeF{fromKey, toKey}]} 
-					\State \codeF{gv} $\leftarrow$ \codeF{GV}  \label{l:get-readGV}
+					\State \codeF{gv} $\leftarrow$ \codeF{GV}  \label{l:get-readGV}  \label{l:put-helped-LP}
 					\State CAS($e$, $\langle \bot$, \codeF{idx} $\rangle$, $\langle$ \codeF{gv, idx} $\rangle$)  \label{l:get-help}
 					\label{l:help-pending-end}
 				\EndIf
@@ -681,7 +681,7 @@ either way, it uses the version written by some successful CAS (line~\ref{l:scan
 	\doWhile{$\neg$CAS(\codeF{last.next+mark}, $C_n$.\codeF{next}+false, $C_n$.\codeF{next}+true)} \label{l:mark-end}
 	\Do 
 		\State \codeF{pred} $\leftarrow$ $C$'s predecessor
-		\If{CAS(\codeF{pred.next+mark}, $C$+false, $C_f$+false)} \label{l:cas-pred}
+		\If{CAS(\codeF{pred.next+mark}, $C$+false, $C_f$+false)} \label{l:cas-pred}  \label{l:set-pred}
 			\Comment{success}  
 			\State normalize($C$)
 			\State return true    

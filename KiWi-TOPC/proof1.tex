@@ -3,80 +3,166 @@
 \section{Correctness}
 \label{sec:proof}
 
-We now provide the key arguments for \kiwi's correctness. 
-Due to space considerations, we state the main lemmas without proof, while 
-a formal correctness proof is deferred to the full version of the paper.
-We begin in Section~\ref{sec:spec} by defining the model and correctness notion we seek to prove, and then present  
-the key safety arguments in Section~\ref{sec:safe}. The liveness proof is omitted for lack of space. 
-%We briefly touch on liveness in Section~\ref{sec:live}.
+In order to lay out foundations  for reasoning about correctness,  we  define in Section~\ref{sec:spec} the model and correctness notion we seek to prove. 
+We proceed to prove the algorithm's safety in Section~\ref{sec:safe} and liveness in Section~\ref{sec:live}.
 
 \subsection{Model and Correctness Specification}
 \label{sec:spec}
 
-We consider an asynchronous shared memory model~\cite{Welch2004}, where a finite number of threads execute memory \emph{operations} on shared objects. High-level objects, such as a map, are implemented using low-level memory objects supporting atomic read, write, and read-modify-write (e.g., CAS) operations. 
-High-level operations are \emph{invoked}, then perform a sequence of  \emph{steps} on low-level objects, and finally \emph{return}.
+We consider an asynchronous shared memory model~\cite{Welch2004} consisting of a collection of shared variables accessed by a finite number of threads , which also have local state.
+High-level objects, such as a map, are implemented using low-level memory objects supporting atomic read, write, and read-modify-write (e.g., CAS) primitives. 
+Threads  \emph{invoke} high-level \emph{operations}, which perform a sequence of  \emph{steps} on low-level objects, and finally \emph{return}.
+
+An \emph{algorithm} defines the behaviors of threads executing high-level operations as deterministic state machines, where local state transitions are associated with  shared low-level memory 
+accesses (read, write, CAS, etc.) or high-level invocations/responses.
+A \emph{configuration} describes the  local states of all threads and the contents of shared variables. An \emph{initial configuration} is one where all threads and variables  are in their initial values.
+An \emph{execution} of algorithm $\mathcal{A}$ is an alternating sequence of configurations and steps, beginning with some initial configuration, 
+such that configuration transitions occur according to $\mathcal{A}$.
+Operation $op1$ \emph{precedes} operation $op2$ in an execution if $op1$'s return step precedes $op2$'s invoke step;
+two operations are \emph{concurrent} in execution $\sigma$  if neither precedes the other, that is, both are invoked in $\sigma$  before either returns.
+ In a  \emph{sequential} execution, there are no concurrent operations.
+We use the notion of time \emph{t} during an execution $\sigma$  to refer to the configuration reached after the $t^{th}$ step in $\sigma$.
+An \emph{interval} of execution $\sigma$ is a sub-sequence of $\sigma$.
+The \emph{interval of an operation} $op$ in $\sigma$  starts with the invocation step of $op$ and ends with the configuration following the return from $op$ or 
+the end of $\sigma$, if there is no such return.
 
 Our correctness notion is \emph{linearizability}, which intuitively means that the object ``appears to be'' executing sequentially. 
-It is defined for a \emph{history}, which is a sequence of operation invoke and return steps, possibly by multiple threads.
-A history partially orders operations: 
-operation $op1$ \emph{precedes} operation $op2$ in a history if $op1$'s return precedes $op2$'s invoke;
-two operations that do not precede each other are \emph{concurrent}. In a  \emph{sequential} history, there are no concurrent operations.
+More formally, the \emph{history} $H(\sigma)$ of execution $\sigma$ is the sequence of invocations  and returns occurring in $\sigma$. 
+In a sequential history, each invocation is immediately followed by its return. 
 An object is specified using a \emph{sequential specification}, which is the set of its allowed sequential histories. 
-Roughly speaking, a history $\sigma$ is \emph{linearizable}~\cite{HerlihyW1990} if it has a sequential permutation that preserves 
-$\sigma$'s precedence relation and satisfies the object's sequential specification. 
-\remove{
-For a history $\sigma$, \emph{complete($\sigma$)} is the sequence obtained by removing invocations with no responses from $\sigma$.
-We assume that histories are \emph{well-formed}, meaning that the sub-sequence of each thread's steps in a history is sequential.
-An object is \emph{linearizable}~\cite{HerlihyW1990} if each of its histories $\sigma$ can be extended by adding zero or more response events to a history $\sigma'$, so that  \emph{complete($\sigma'$)} has a sequential permutation that preserves $\sigma$'s precedence relation and 
-satisfies the object's sequential specification. 
-}
 
-\kiwi\ implements a map offering put, get, and scan operations, and in its sequential specification, get and scan return the latest value inserted by a put for each key in their ranges.
+For a history $h$, \emph{complete($h$)} is the sequence obtained by removing invocations with no responses from $h$.
+We assume that histories are \emph{well-formed}, meaning that the sub-sequence of each thread's steps in a history is sequential.
+An algorithm is \emph{linearizable}~\cite{HerlihyW1990} if each of its histories $h=H(\sigma)$ can be extended by adding zero or more response events to a history $h'$, 
+so that  \emph{complete($h'$)} has a sequential permutation that preserves $h$'s precedence relation and satisfies the object's sequential specification. 
+Thus, a linearizable algorithm provides the illusion that each invoked operation takes effect instantaneously at some  \emph{linearization point} inside its interval. 
+
+For liveness, we consider two notions: \emph{wait-freedom} requires that \emph{every} operation return within a finite number of its own steps, whereas \emph{lock-freedom}  
+requires only that \emph{some} operation return within a finite number of steps. The former is sometimes called \emph{starvation-freedom} and the latter -- \emph{non-blocking}. 
+
+\kiwi\ implements a linearizable map offering lock-free put operations and wait-free get and scan operations. 
+In its sequential specification, get and scan return the latest value inserted by a put for each key in their ranges.
+
+
+
+
 
 \subsection{\kiwi's Linearizability}
 \label{sec:safe}
 
-Proving {\kiwi} is linearizable is accomplished by identifying, for every operation in a given history, a \emph{linearization point} between its invoke and return steps, so that the operation ``appears to'' occur atomically at this point. 
+In Section~\ref{ssec:rebalance-proof} we show that the rebalance process preserves the data structure's integrity and contents. 
+We then prove that  {\kiwi} is linearizable by identifying, for every operation in a given execution, a {linearization point} between its invoke and return steps, so that the operation ``appears to'' occur atomically at this point.  We discuss put operations in Section~\ref{ssec:put-proof}, and gets and scans in Section~\ref{ssec:get-proof}. 
 The linearization point of operation $op$ is denoted \lp{op}. 
 
-\paragraph{Puts.} 
 
-We saw above that puts in a chunk $C$
-are ordered (lexicographically) according to their $\langle v, j \rangle$  pairs, where
-$\langle v, i \rangle$ is published in their PPA in phase 2 of the put, and \code{$C$.k[$i$].valPtr$=j$}; this pair is called the \emph{full version} of the put.
-We note that in each chunk, the full versions are unique, because threads obtain $j$ using F\&A.
+
+\subsubsection{Rebalance.}
+\label{ssec:rebalance-proof}
+
+We first argue that rebalance operations preserve the integrity of the data structure.  
+To this end, we introduce some definitions. 
+We say that a chunk $C$ is \emph{accessible} in \kiwi\ if $C$ is connected to the linked list, 
+that is, if traversing the lined list from its head to its tail goes through $C$. 
+While a chunk is accessible its key range is well-defined: 
+We say that key $k$ is in the \emph{range} of chunk $C$ if $k \geq C$.\code{minKey} and $k < C.$\code{next.minKey}.
+
+When all the entries in a chunk's PPA are frozen, we say that the chunk is \emph{frozen}. 
+Observe that a put operation can successfully complete in chunk $C$ at a time $t$ only if  (1) $C$ is accessible  at some time $t'<t$, 
+and (2) $C$ is not frozen at time $t$. This is because once a thread's PPA entry is frozen, its attempt to CAS it inevitably fails and it triggers rebalance.
+We say that a chunk is \emph{mutable} if these two conditions are satisfied. Similarly, a chunk is \emph{immutable} before it first becomes accessible 
+and again after the freezing stage of its rebalance is complete. 
+
+Rebalance preserves the following invariant:
+\begin{invariant}
+At any point in an execution of \kiwi, for every key $k$,  
+\begin{enumerate}
+\item the \code{minKey} values in the linked list are monotonically increasing (so $k$ is in the range of exactly one accessible chunk);  
+\item  $k$ is in the range of at most one mutable chunk; and 
+\item querying the index for $k$  returns a chunk $C$ s.t.\  $C$.\code{minKey} $\le k$ and $C$ is either accessible or frozen.
+\end{enumerate}
+\label{invariant:rebalance}
+\end{invariant}
+\begin{proof}
+\begin{enumerate}
+\item
+Observe that when a segment of new chunks is connected instead of a sequence of old ones, $C_f$.\code{minKey} is equal to $C$.\code{minKey}, 
+and  the \code{next} pointer in $C$'s predecessor is replaced via CAS from $C$ to $C_f$ (line~\ref{l:set-pred}) hence the invariant is preserved on the left side of the new segment.
+The invariant is also preserved on the right side of the new segment because each new chunk's \code{minKey} is set to some key encountered in the old segment before \code{last}, 
+and $C_n$.\code{next} is guaranteed to be \code{last.next} (lines  \ref{l:mark}--\ref{l:mark-end}).  
+\item
+The rebalance protocol does not link new chunks to the list (stage (5)) 
+before freezing the old chunks holding the same key range (stage (2)).
+Moreover, once a chunk is engaged (stage (1)), it is associated with a unique rebalance object \code{ro}
+whose next pointer is set to $\bot$, 
+and hence the segment of chunks associated with \code{ro} cannot change. 
+Using a CAS to set $C$'s predecessor \code{next} pointer to $C_f$ ensures 
+that the old immutable chunk is replaced by at most one new accessible mutable chunk.
+\item
+Chunks are indexed according to their \code{minKey}, and 
+the rebalance protocol does not index new chunks (stage (6)) before making them accessible (stage (5)). 
+Before a chunk ceases to be accessible, it must be frozen. 
+\end{enumerate}
+\end{proof}
+
+In addition to preserving the data structure's integrity, rebalance ensures that no key-value pairs disappear from the data structure due to rebalancing. 
+We say that a key-value pair $\langle$key, val$ \rangle$ is \emph{stored in} \kiwi\ at time $t$ in execution $\sigma$ if invoking get(key) at the end of $\sigma$
+and allowing it to complete without interfering steps of other threads returns val. We show the following:
+
+\begin{proposition}
+If $\langle$key, val$ \rangle$ is \emph{stored in} \kiwi\ at time $t$ in execution $\sigma$ and no subsequent put(key,$\_$)  operations are invoked in $\sigma$, 
+then $\langle$key, val$ \rangle$ is \emph{stored in} \kiwi\ at all times $t' > t$ in  $\sigma$.
+\label{proposition:no-loss}
+\end{proposition}
+\begin{proof}
+By Invariant~\ref{invariant:rebalance}(1), key is in the range of exactly one accessible chunk $C$ at time $t$,  which  get(key) locates, 
+and the returned val is the one associated with key with the highest version (with ties broken by valPtr). 
+Observe that as long as $C$ remains accessible at time $t'$, its range does not change because \code{minKey} is invariant, and if $C$'s successor is 
+replaced by rebalance, it is replaced with a chunk with the same \code{minKey}. 
+
+Since no   subsequent put(key,$\_$)  operations are invoked in $\sigma$, val remains the highest-version value associated with key in $C$, and we are done.
+It remains to show that a rebalance that removes $C$ does not remove $\langle$key, val$ \rangle$ from \kiwi, from which the proposition follows   inductively.
+%Consider therefore a rebalance that engages $C$.  %Once $C$.\code{ro} is set, it does not change.
+This, in turn, follows from the facts that (1) the highest-versioned value associated with each key in an old chunk $C$ is cloned into a new chunk; and 
+(2) the entire chunk segment is replaced atomically by first marking the next pointer of the last engaged chunk to prevent it from changing, and then 
+CASing the predecessor of the first engaged chunk.
+ \end{proof}
+
+\subsubsection{Puts.} 
+\label{ssec:put-proof}
+
+Puts in a chunk $C$
+are ordered (lexicographically) according to their version-value-index   pairs $\langle v, j \rangle$, where
+$\langle v, i \rangle$ is published in the appropriate  PPA entry in phase 2 of the put, and \code{$C$.k[$i$].valPtr$=j$}; this pair is called the \emph{full version} of the put.
+We note that in each chunk, the full versions are unique, because threads obtain $j$ using F\&A (line~\ref{l:put-cas-j}).
 First,  $i$ is published in \code{ppa[t].idx} (line~\ref{l:put-version}) and then
-the location-version pair obtains its final value by a successful CAS of \code{ppa[t].ver}, either by the put (line~\ref{l:put-cas-version}) or by a helping thread (line~\ref {l:get-help}). 
+the  pair gets its final value by a successful CAS of \code{ppa[t].ver}, either by the put (line~\ref{l:put-cas-version}) or by a helping thread (line~\ref {l:get-help}). 
 We refer to 
 a step publishing $i$ in \code{ppa[t].idx} and to
 the step executing the successful CAS  as the put's \emph{publish time} and the \emph{full version assignment time}, resp., 
-and say that the put \emph{assigned}  $\langle v, j \rangle$ for its key in $C$.
+and say that the put \emph{assigns} full version $\langle v, j \rangle$ for its key in $C$.
 
 We note that each put assigns a full version at most once. 
+Furthermore, as noted above, a full version can only be assigned in a mutable chunk.
 Once a put operation $po$ for key $k$ assigns its full version in chunk $C$ at time $t$, we can define its linearization point. 
 There are two options: 
 \begin{enumerate}
-\setlength{\itemsep}{0pt}
-\setlength{\parskip}{0pt}
 \item If at time $t$
 $po$'s full version $\langle v, j \rangle$ is the highest for $k$ in $C$, (among entries in $C$'s {PPA} and  linked list),
-then  \lp{po} is the last step reading $v$ from \code{GV} before $t$.
-%%%% (line~\ref{l:put-LP}). 
+then  \lp{po} is the last step reading $v$ from \code{GV} before $t$ (line~\ref{l:put-LP} or~\ref{l:put-helped-LP}). 
 \item  Otherwise, let $po'$ be the 
 \code{put($k,\_$)} operation that assigns for $k$ in $C$ the smallest full version exceeding $po$'s
 before time $t$. Then \lp{po} is recursively defined to be \lp{po'}. Note that 
 $po$'s full version assignment time exceeds that of  $po'$, so the recursive definition does not induce cycles. 
-\end{enumerate}
 In case multiple puts are assigned to the same point, they are linearized in increasing full version order.
+\end{enumerate}
 
-While a chunk is accessible from the chunks list its key range is well-defined.
-We say that key $k$ is in the \emph{range} of chunk $C$ if $k \geq C$.\code{minKey} and $k < C.$\code{next.minKey}.
-$C$ is \emph{mutable} if put operations can assign full version in $C$, otherwise it is \emph{immutable}.
-An invariant of the rebalance process is that 
-a chunk is immutable before it is accessible from the chunks list and after the freezing stage is completed. 
-In addition, at any point in time each key is covered by the range of at most one mutable chunk. 
-It is easy to show that a put operation always lands at a mutable chunk with a range that covers the key.
-Thus, rebalance operations divide puts of key $k$ into disjoint groups; one group per mutable epoch of each chunk covering the key.
+
+
+%% HERE %%
+
+% It is easy to show that a put operation always lands at a mutable chunk with a range that covers the key.
+By Invariant~\ref{invariant:rebalance},
+rebalance operations divide puts of key $k$ into disjoint groups; one group per mutable epoch of each chunk covering the key.
 The following lemma 
 establishes the order among linearization points of puts within one epoch.
 \begin{lemma}
@@ -98,7 +184,8 @@ operation $po=$\code{put($k, \_$)} that assigns $\langle v, j\rangle$ to $C$.\co
 %For every key k and time t when k is in the range of a chunk C that is accessible (either from the index or from the chunks list), the value published to k by the put with the latest LP before t is associated with the highest location-based version in C's linked list and PPA.
 
 
-\paragraph{Gets and scans.}
+\subsubsection{Gets and scans.}
+\label{ssec:get-proof}
 
 The most subtle linearization is of get operations.
 A get operation $go$ may land in a mutable or immutable chunk. 
@@ -142,7 +229,7 @@ It is easy to show that gets and scans land in chunks that contain the saught ke
 Lemma~\ref{proof:get} shows that get operations satisfy their sequential specification, and Lemma~\ref{proof:scan} proves that scans satisfy their sequential specification. 
 Hence we conclude that \kiwi\ implements a linearziable map. 
 
-\remove{
+
 \subsection{Liveness}
 \label{sec:live}
 
@@ -152,5 +239,5 @@ The proof shows that (1) every get and scan completes within a finite number of 
  {\kiwi}'s gets and scans are \emph{wait-free}, namely, in any execution, every operation completes within a finite number of steps by its invoking thread. The proof shows that the number of iterations in the loops in these operations is finite. 
 
 We further prove that put operations are \emph{lock-free}, namely, in every execution, \emph{some} operation completes. We show that although a put operation can execute an infinite number of rebalances, this occurs because 
-some operation (and in fact many operations) successfully complete a put.}
+some operation (and in fact many operations) successfully complete a put.
 
