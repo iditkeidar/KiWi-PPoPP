@@ -289,7 +289,7 @@ Finally, the PPA version is cleared (line \ref{l:put-clean}).
 \Statex
 
 	\Procedure{helpPendingPuts}{$C$, fromKey, toKey}  \label{l:help-pending}
-			\ForAll {entry $e$ in $C$.\codeF{ppa}} 				
+			\ForAll {entry $e$ in $C$.\codeF{ppa}} \label{l:get-traversePPA}		
 				\State \codeF{idx} $\leftarrow$ $e$.\codeF{idx} 
 				\If{ $C$.\codeF{k[idx].key} $\in$ [\codeF{fromKey, toKey}]} 
 					\State \codeF{gv} $\leftarrow$ \codeF{GV}  \label{l:get-readGV}  \label{l:put-helped-LP}

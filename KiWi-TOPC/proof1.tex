@@ -18,7 +18,7 @@ accesses (read, write, CAS, etc.) or high-level invocations/responses.
 A \emph{configuration} describes the  local states of all threads and the contents of shared variables. An \emph{initial configuration} is one where all threads and variables  are in their initial values.
 An \emph{execution} of algorithm $\mathcal{A}$ is an alternating sequence of configurations and steps, beginning with some initial configuration, 
 such that configuration transitions occur according to $\mathcal{A}$.
-Operation $op1$ \emph{precedes} operation $op2$ in an execution if $op1$'s return step precedes $op2$'s invoke step;
+Operation $op_1$ \emph{precedes} operation $op_2$ in an execution if $op_1$'s return step precedes $op_2$'s invoke step;
 two operations are \emph{concurrent} in execution $\sigma$  if neither precedes the other, that is, both are invoked in $\sigma$  before either returns.
  In a  \emph{sequential} execution, there are no concurrent operations.
 We use the notion of time \emph{t} during an execution $\sigma$  to refer to the configuration reached after the $t^{th}$ step in $\sigma$.
@@ -173,15 +173,29 @@ operation $po=$\code{put($k, \_$)} that assigns $\langle v, j\rangle$ to $C$.\co
 \setlength{\itemsep}{0pt}
 \setlength{\parskip}{0pt}
 \item \label{proof:put:lp1} \lp{po} is after $po$ allocates location $j$ for its value and before $t$.
-\item \label{proof:put:lp2} \lp{po} is a read step of \code{GV} that returns $v$.
+\item \label{proof:put:lp2} \lp{po} is a read step of \code{GV} that occurs after \code{GV} is set to $v$.
 \item \label{proof:put:lp3} \lp{po} is after some operation $po'$ (possibly $po$, but not necessarily) publishes for $k$ to $C$ where later $po'$ assigns a full version equal to or greater than $\langle v, j\rangle$.
-\item \label{proof:put:lp4} The linearization points of all operations that publish for $k$ to $C$ preserve their full version order.
-\item \label{proof:put:lp5} At time $t_0$, the value published to $k$ by the put with the latest linearization point before $t_0$ is associated with the highest full version in C's linked list.
+\item \label{proof:put:lp4} The linearization points of all operations that publish $k$ to $C$ preserve their full version order.
 \end{enumerate}
 \end{lemma}
-
-
+%\item \label{proof:put:lp5} At time $t_0$, the value published to $k$ by the put with the latest linearization point before $t_0$ is associated with the highest full version in C's linked list.
 %For every key k and time t when k is in the range of a chunk C that is accessible (either from the index or from the chunks list), the value published to k by the put with the latest LP before t is associated with the highest location-based version in C's linked list and PPA.
+\begin{proof}
+We consider an execution interval $\pi$ which spans the execution intervals of all operations that publish $k$ to $C$ .
+Denote by $t_1, t_2, \ldots $ the finite sequence of times these operations assigned versions $v_1, v_2, \ldots$ into entries in the \code{ppa} by their order in $\pi$, where $t_i$ is the assignment time of operation $op_i$; the locations each operation allocated for its value are $j_1, j_2, \ldots$, respectively.
+
+The proof is by induction on $i$. For the base case, we consider $op_1$. It is the first to publish its version in the \code{ppa}. 
+All entries of key $k$ from previous epochs are written in $C$ during the rebalance operation that created $C$; their version is smaller or equal to $v_1$, and their location is smaller than $j_1$. 
+Therefore, the full version of these entries is smaller than $\langle v_1, j_1\rangle$  and $op_1$ is linearized in the last read step of the global version counter that returns $v_1$ before $t_1$. Clearly this is after $op_1$ is published, and specifically after $j_1$ is allocated, and the lemma holds.
+
+For the induction step, assume the lemma holds for operations $op_1, \ldots op_{i-1}$. We prove the lemma for operation $op_i$ by case analysis.
+If $op_i$'s full version $\langle v_i, j_i\rangle$ is maximal in $C$ (with respect to all linked cells and published entries with the same key) then \lp{op_i} is the last read retrieving $v_i$ from the global counter. This step is done after the put is published in the \code{ppa} (which is after $j_i$ is allocated) and before $t_i$, and Conditions~\ref{proof:put:lp1}-\ref{proof:put:lp3} of the lemma hold. In addition, by the induction hypothesis, linearization points of $op_1, \ldots op_{i-1}$ preserve their full version order. They are all linearized in read steps after the global version counter is set to their versions, specifically not later than \lp{op_i}---the latest read step returning the maximal version, hence Condition~\ref{proof:put:lp4} holds as well.
+
+Otherwise, another operation $op_l$ published $\langle v_l, j_l\rangle$ in $\sigma_l$ before $\sigma_i$, s.t. $\langle v_l, j_l\rangle > \langle v_i, j_i\rangle$. By definition, $op_i$ is linearized exactly at the point (\lp{op_l}) which preserves the full version order of the operations, and Condition~\ref{proof:put:lp4} holds. By Condition~\ref{proof:put:lp3} of the induction hypothesis, \lp{op_l} is after an operation publishes $k$ to $C$ (and later assigns a full version equal or greater than $\langle v_l, j_l\rangle$). Since $\langle v_l, j_l\rangle > \langle v_i, j_i\rangle$, Condition~\ref{proof:put:lp3} also holds. \eshcar{ADD FIGURES}
+
+It is left to discuss Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. Consider first the case where $v_l>v_i$. By Condition~\ref{proof:put:lp2} of the induction hypothesis \lp{op_l} is in a read step of the global version counter that occurred after it is set to $v_l$. $op_i$ eventually publishes the version $v_i$ which is smaller than $v_l$. This implies $op_i$ published the operation in the \code{ppa} before the version counter is set to $v_l$, and  \lp{op_i} satisfies Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. If $v_l =v_i$ and $j_l>j_i$ then $op_l$ allocated $j_l$ after $op_i$ allocated $j_i$. By Condition~\ref{proof:put:lp1} of the induction hypothesis, \lp{op_l} is after $op_l$ allocated $j_l$  and before $\sigma_l$, and  \lp{op_i} satisfies Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. \eshcar{ADD FIGURES}
+
+\end{proof}
 
 
 \subsubsection{Gets and scans.}
@@ -191,18 +205,19 @@ The most subtle linearization is of get operations.
 A get operation $go$ may land in a mutable or immutable chunk. 
 We need to linearize $go$ before all concurrent puts that $go$ misses while seeking the value.
 %get
-For a get operation $go$ for a key $k$ in the range of chunk $C$, there are three options:
+For a get operation $go$ for a key $k$ in the range of chunk $C$, we consider the time $t$ when $go$ starts traversing $C$'s PPA (line~\ref{l:get-traversePPA} in \code{helpPendingPuts}). There are three options:
 \begin{enumerate}
 \setlength{\itemsep}{0pt}
 \setlength{\parskip}{0pt}
-\item If $C$ is not accessible from the chunks list when $go$ starts traversing $C$'s PPA, then \lp{go} is the last step in which $C$ is still accessible from the chunks list.
-\item Else, if $go$ does not find $k$ in $C$ then \lp{go} is when $go$ starts traversing $C$'s PPA.
-\item Else, let $po$ be the put operation that inserts the value returned by $go$. \lp{go} is the latest between when $go$ starts traversing $C$'s {PPA} and immediately after \lp{po}.
+\item If $C$ is not accessible from the chunks list at time $t$, then \lp{go} is the last step in which $C$ is still accessible from the chunks list.
+\item Else, if $go$ does not find $k$ in $C$ then \lp{go} is at time $t$.
+\item Else, let $po$ be the put operation that inserts the value returned by $go$. \lp{go} is the latest between time $t$ and immediately after \lp{po}.
 \end{enumerate}
+\eshcar{ADD FIGURES}
 
 The next lemma shows that in the third case no other put writing to $k$ is linearized after \lp{po} and before \lp{go}.
-The proof relies on %Conditions~\ref{proof:put:lp1},~\ref{proof:put:lp3} and~\ref{proof:put:lp4} of 
-Lemma~\ref{proof:put} and the rebalance invariants.% to prove it.
+The proof relies on 
+Lemma~\ref{proof:put} and the rebalance invariants.
 
 \begin{lemma}
 \label{proof:get}
@@ -214,18 +229,39 @@ Consider a get operation $go$ retrieving the value of key $k$ from chunk $C$. Le
 \item \label{proof:get:lp2} If $go$ returns the value written by operation $po$, then \lp{go} is after \lp{po}, and for each  $po' \neq po$ publishing $k$ in $C$, \lp{po'} is either before \lp{po} or after $t$.
 \end{enumerate}
 \end{lemma}
+\begin{proof}
+%It can be inferred from \code{findLatest} that $op$ returns the value with the maximal location-based version observed by $op$ in the \code{ppa} and in the cell linked list. In addition, it can be inferred from the code that put operations update values in-place in the cell linked list only if its full version is higher than the full version of the cell in the list.
+
+First, assume $go$ did not find the key in $C$. It can be inferred from \code{findLatest}, all operations publishing $k$ in $C$ are published in the \code{ppa} after $t$. Otherwise, $go$ should have observed one of them either in the \code{ppa} or in the linked list. By Condition~\ref{proof:put:lp3} of Lemma~\ref{proof:put}, all operations publishing $k$ in $C$ are linearized after $t$, and Condition~\ref{proof:get:lp1} holds.
+
+Next, assume $go$ returns the value written by operation $po_l$, where the full version of $po_l$ is $\langle v_l, j_l\rangle$. 
+
+If $C$ is not accessible from the chunks list at time $t$, then \lp{go} is in the last step in which $C$ is accessible from the chunks list. By the rebalance invariant no put operation can publish in $C$ after $t$, and by Condition~\ref{proof:put:lp1} of Lemma~\ref{proof:put}  \lp{go} is after \lp{po_l}. Otherwise, by definition that \lp{go} is (immediately) after  \lp{po_l}.
+
+Consider an operation $po_m \neq po_l$ publishing $k$ to $C$ with full version $\langle v_m, j_m\rangle$.
+By Condition~\ref{proof:put:lp4} of Lemma~\ref{proof:put}, if $\langle v_m, j_m\rangle < \langle v_l, j_l\rangle$ then \lp{po_m} is before \lp{po_l}. It is left to show that if $\langle v_m, j_m\rangle > \langle v_l, j_l\rangle$ then \lp{po_m} is after $t$.
+It can be inferred from \code{findLatest}, all operations publishing $k$ in $C$ with full version $\langle v_m, j_m\rangle > \langle v_l, j_l\rangle$ are published in the \code{ppa} after $t$. Otherwise, $go$ should have observed one of them either in the \code{ppa} or in the linked list.
+Condition~\ref{proof:put:lp3} of Lemma~\ref{proof:put} implies that these operations are linearized after at least one of them is published in the \code{ppa}, hence Condition~\ref{proof:get:lp2} also holds.
+\end{proof}
 
 Scans are linearized when \code{GV} is increased beyond their read point, typically by their own F\&I, and sometimes by a helping rebalance. 
-%We use %Conditions~\ref{proof:put:lp2} and~\ref{proof:put:lp4} of 
 Lemma~\ref{proof:put} helps to prove the following:
 \begin{lemma}
 \label{proof:scan}
 Consider a scan operation $so$ that acquires version $v$ as its read point. For each key $k$ in the range of the scan, $so$ returns the value of the put operation writing to $k$ that is linearized last before \lp{so}.
 \end{lemma}
+\begin{proof}
+%It can be inferred from \code{findLatest} that for each key $k$ in the range of the scan, $op$ returns the maximal location-based version of $k$ that does not exceed the scan read point observed by $op$ in the \code{ppa} and in the cell linked list. In addition, it can be inferred from the code that put operations update values in-place in the cell linked list only if its location-based version is higher than the location-based version of the cell in the list.
+
+Consider a put operation $po$ that writes to a key in the range of the scan but is not observed by $op$. If $po$ acquires version that is less than $v$ then it acquired a version before the scan increased the global version counter. Since $so$ did not observe $po$ in the \code{ppa}, $po$ completed before $so$ read the entry in the \code{ppa}. $so$ did not observe $po$ in the linked list. It can be inferred from the code that another put operation $po'$ with a higher version than $po$'s full version updated the $k$'s value in-place in the linked list.
+By Condition~\ref{proof:put:lp4} of Lemma~\ref{proof:put}, $po$ is linearized before $po'$ writing the value returned by the scan.
+
+Finally, by Condition~\ref{proof:put:lp2} of Lemma~\ref{proof:put} all put operations that are not observed by $so$ and acquire version that is greater than $v$ are linearized after \lp{so}.
+\end{proof}
 
 The definition of the linearization points of scans and get operations imply that these operations are linearized between their invocation and return.
 Condition~\ref{proof:put:lp1} of Lemma~\ref{proof:put} implies the same for puts. 
-It is easy to show that gets and scans land in chunks that contain the saught keys in their ranges. Combined with the rebalancing invariants,
+It is easy to show \eshcar{show it!! before the lemmas} that gets and scans land in chunks that contain the saught keys in their ranges. Combined with the rebalancing invariants,
 Lemma~\ref{proof:get} shows that get operations satisfy their sequential specification, and Lemma~\ref{proof:scan} proves that scans satisfy their sequential specification. 
 Hence we conclude that \kiwi\ implements a linearziable map. 
 
@@ -241,3 +277,168 @@ The proof shows that (1) every get and scan completes within a finite number of 
 We further prove that put operations are \emph{lock-free}, namely, in every execution, \emph{some} operation completes. We show that although a put operation can execute an infinite number of rebalances, this occurs because 
 some operation (and in fact many operations) successfully complete a put.
 
+---------------------------
+\newcommand{\abs}[1]{\mid{#1}\mid}
+
+We now show that \emph{get} and \emph{scan} operations are wait-free, and \emph{put} operations are lock-free.
+
+We say that a sequence $\pi_s$ is a \emph{sub-execution}, if $\pi_s$ is a suffix (or a prefix) of an execution.
+We say that thread $t$ is \emph{running} in a sub-execution $\pi_s$, if at least one step in $\pi_s$ is executed by thread $t$.
+%
+Given two keys $K_1$ and $K_2$, we write $\abs{K_2 - K_1}$ to denote the number of possible keys between $K_1$ and $K_2$ (notice that $\abs{K_2 - K_1}$ is always a finite number because each key is stored in a bounded number of bytes).
+%
+Given a chunk $X$, we write $min(X)$ to denote the minimal key in $X$ (as mentioned before, $min(X)$ is never changed during the lifetime of $X$).
+
+
+
+\begin{lemma}
+\label{proof:orderLemma}
+Let $\pi = C_0,s_1,C_1, \ldots,s_i,C_i,\ldots$ be an execution.
+Let $X$ and $Y$ be two chunks in configuration $C_i$ such that $Y=X.next$.
+For any configuration $C_j$ such that $j \geq i$ we have  $min(X) < min(Y)$ in $C_j$.
+\end{lemma}
+\begin{proof}
+The algorithm writes the address of $Y$ in $X.next$ only if $min(X) < min(Y)$
+(this happens either at line $22$ of the function \emph{Kiwi::Replace}, or within the function \emph{balance()}).
+Since $min(X)$ and $min(Y)$ are never changed, $min(X) < min(Y)$ in  any $C_j$ such that $j \geq i$.
+
+\end{proof}
+
+\begin{lemma}
+\label{proof:aaaaaaaa}
+The function \emph{get} is wait-free.
+\end{lemma}
+\begin{proof}
+We prove that \emph{get} is wait-free by showing that the functions \emph{Kiwi::FindChunk} and \emph{Chunk::Find} are wait-free.
+
+The function \emph{Kiwi::FindChunk} has a single loop: we write ${next}_i$ to denote the value of variable \emph{next} at the beginning of the $i$-th iteration of the loop.
+%
+Because of Lemma~\ref{proof:orderLemma}, $min({next}_i) < min({next}_{i+1})$.
+Hence the loop terminates after at most $\abs{key - min({next}_1)}$ iterations.
+%
+Since all the functions invoked by \emph{Kiwi::FindChunk} are wait-free, each invocation of \emph{Kiwi::FindChunk} by thread $t$ completes within a finite number of steps by $t$.
+
+The function \emph{Chunk::Find} invokes the functions \emph{Chunk::FindInPendingList} and \emph{Chunk::FindInCellList}.
+The loop in \emph{Chunk::FindInPendingList} completes after a constant number of iterations.
+The function \emph{Chunk::FindInCellList} goes over the chunk's link-list exactly once (this link-list has at most $M$ cells).
+Hence, each invocation of \emph{Chunk::Find} by thread $t$ completes within a finite number of steps by $t$.
+
+\end{proof}
+
+
+
+\begin{lemma}
+\label{proof:aaaaaaaa}
+The function \emph{scan} is wait-free.
+\end{lemma}
+
+\begin{proof}
+All functions invoked by \emph{scan} are wait-free.
+It is sufficient to show that the loops in  \emph{scan} have
+a finite number of iterations.
+
+The function \emph{scan} has two nested loops:
+we write $L_e$ to denote the external loop (begins at line $10$), and $L_i$ to denote the internal loop (begins at line $12$).
+Let ${key}_i$ be the value of variable \emph{key} at the end of the $i$-th iteration of $L_e$.
+Each ${key}_i$ is equal to the minimal key of the chunk which is handled by iteration $i+1$
+(this chunk is pointed by the variable \emph{chunk}).
+Because of Lemma~\ref{proof:orderLemma}, if $L_e$ has (at least) $i+1$ iterations then ${key}_i < {key}_{i+1}$.
+%Since the chunks are sorted according to their minimal keys, ${key}_i < {key}_{i+1}$ for any $i$.
+Hence, $L_e$ has at most  $\abs{maxKey - minKey}$ iterations.
+
+The loop $L_i$ goes over the link-list of a chunk (this link-list has at most $M$ elements), hence $L_i$ has at most $M$ iterations.
+
+Therefore, each invocation of \emph{scan} by thread $t$ completes within a finite number of steps by $t$.
+
+\end{proof}
+
+
+
+
+
+\begin{lemma}
+\label{proof:aaaaaaaa}
+The function \emph{put} is lock-free.
+\end{lemma}
+\begin{proof}
+We prove by contradiction.
+Assume that \emph{put} is not lock-free.
+Hence there exists an infinite execution $\pi = C_0,s_1,C_1,\ldots$ such that
+after configuration $C_{k0}$ ($k0 \geq 0$) no operation completes and no new operation is invoked.
+%no operation completes after configuration $C_{k0}$.
+%
+We have already shown that \emph{get} and \emph{scan} are wait-free,
+ therefore there exists configuration $C_{k1}$ in $\pi$ ($k0 \leq k1$) such that after $C_{k1}$ all the running threads execute  \emph{put} operations.
+
+
+We write \emph{$t:X$.allocate} to denote an invocation of \emph{allocate} on chunk $X$ by thread $t$
+(\emph{allocate} is invoked by function \emph{put} at line $6$).
+We say that invocation \emph{t:$X$.allocate} is \emph{successful}
+if it returns a reference to a valid cell (i.e., it returns a non-null value).
+
+Consider an execution of the loop in function \emph{put} by thread $t$.
+If \emph{$t:X$.allocate} is not successful at iteration $i+1$ ($i \geq 1$) of $t$ ,
+then at iteration $i$ the invocation of \emph{$t:Y$.allocate} is also not successful.
+Hence thread $t$ invokes \emph{Rebalance($Y$)} at the end of iteration $i$.
+Therefore $Y \neq X$ and chunk $X$ has been added to kiwi (at some point) during iterations $i$ and $i+1$ of $t$
+(when a chunk is added to kiwi, this chunk is not full).
+Therefore another thread $t' \neq t$ successfully invoked \emph{$t':X$.allocate} (at some point) during iterations $i$ and $i+1$ of $t$
+(otherwise \emph{$t:X$.allocate} should be successful).
+%
+Since a thread do not start new iteration of this loop after a successful invocation of \emph{allocate} (see lines $6$--$9$ in \emph{put}),
+ we know that there exists configuration $C_{k2}$ in $\pi$ ($k1 \leq k2$) such that:
+after $C_{k2}$ the \emph{put} operations do not start new iterations of this loop.
+
+Since \emph{allocate} is wait-free, there exists configuration $C_{k3}$ in $\pi$ ($k2 \leq k3$) such that
+no thread executes \emph{allocate} after $C_{k3}$.
+Hence, no chunk becomes full in $\pi$ after configuration $C_{k3}$.
+
+
+%Consider the loop in function \emph{put}.
+%This loop may have iteration $i+1$ only if \emph{chunk.allocate} is not successful at iteration $i$ ---
+%this can only happen if (at some point) after the beginning the $i$-th iteration a concurrent \emph{put} operation has successfully invoked \emph{chunk.allocate} on the same chunk.
+%Hence there exists configuration $C_{k2}$ in $\pi$ ($k1 \leq k2$) such that: after $C_{k2}$ the \emph{put} operations do not start new iterations of this loop.
+
+In the following paragraphs we focus on the functions \emph{Kiwi::Rebalance} and \emph{Kiwi::Replace}.
+Notice that \emph{Kiwi::Rebalance} calls to \emph{Kiwi::Replace}; and that \emph{Kiwi::Replace} recursively calls to \emph{Kiwi::Rebalance} in line $20$.
+An invocation of \emph{Kiwi::Rebalance} on chunk $X$ removes $X$ from kiwi:
+hence for each thread $t$ and chunk $X$, \emph{Rebalance($X$)} may be invoked at most once by $t$.
+
+Let $N_{puts}$ be the number of \emph{put} operations after configuration $C_{k3}$.
+Let $N_E$ be the maximal number of new chunks created by an invocation of \emph{balance()} (in our implementation $N_E=4$).
+Since after $C_{k3}$ no chunk may become full, at most $N_{puts} \times N_E$ new chunks may be created after $C_{k3}$.
+Therefore, after configuration $C_{k3}$ the threads invoke function  \emph{Kiwi::Rebalance} a finite number of times.
+Hence there exists a configuration $C_{k4}$ in $\pi$ ($k3 \leq k4$) such that \emph{Kiwi::Rebalance} is not invoked after $C_{k4}$.
+
+
+
+%Let $N_{puts}$ be the number of \emph{put} operations after configuration $C_{k2}$.
+%After $C_{k2}$, at most $N_{puts}$ chunks may become full.
+%If $N_E$ is the maximal number of new chunks created by an invocation of \emph{balance()},
+%then after configuration $C_{k2}$ at most $N_{puts} \times N_E$ new chunks may be created.
+%Therefore, after configuration $C_{k2}$ the threads invoke function  \emph{Kiwi::Rebalance} a finite number of times.
+%Hence there exists a configuration $C_{k3}$ in $\pi$ ($k2 \leq k3$) such that \emph{Kiwi::Rebalance} is not invoked after $C_{k3}$.
+
+%Consider the loop in \emph{Kiwi::Replace}.
+
+Since the other functions invoked by \emph{put} are lock-free\footnote{
+The other functions invoked by \emph{put}, \emph{Kiwi::Rebalance} and \emph{Kiwi::Replace} are lock-free:
+we assume that \emph{index.replace} is lock-free, the other ones are trivially wait-free.},
+there exists a configuration $C_{k5}$ in $\pi$ ($k4 \leq k5$) such that all the running threads
+after $C_{k5}$ execute the loop in \emph{Kiwi::Replace} (and this loop is never terminated).
+%
+Hence, the CAS at line $22$ always fails after configuration $C_{k5}$ (i.e., no CAS updates shared memory after $C_{k5}$).
+This is a contradiction, because the  CAS at line $22$ may fail only if shared memory has been updated since the beginning of the iteration.
+
+
+
+%
+%
+%
+%Consider the loop in \emph{Kiwi::Replace}.
+%Since the other functions are lock-free, there exists a configuration $C_{k4}$ in $\pi$ ($k3 \leq k4$) such that all the threads which are running after $C_{k4}$ do not exit from this loop.
+%Hence, the CAS at line $22$ always fails after configuration $C_{k4}$ (i.e., no CAS updates shared memory after $C_{k4}$).
+%This is a contradiction, because the  CAS at line $22$ may fail only if shared memory has been updated since the beginning of the iteration.
+
+\end{proof}
+-------------------------
