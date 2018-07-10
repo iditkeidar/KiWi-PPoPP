@@ -51,7 +51,7 @@ In its sequential specification, get and scan return the latest value inserted b
 \label{sec:safe}
 
 In Section~\ref{ssec:rebalance-proof} we show that the rebalance process preserves the data structure's integrity and contents. 
-We then prove that  {\kiwi} is linearizable by identifying, for every operation in a given execution, a {linearization point} between its invoke and return steps, so that the operation ``appears to'' occur atomically at this point.  We discuss put operations in Section~\ref{ssec:put-proof}, and gets and scans in Section~\ref{ssec:get-proof}. 
+We proceed to prove that  {\kiwi} is linearizable by identifying, for every operation in a given execution, a {linearization point} between its invoke and return steps, so that the operation ``appears to'' occur atomically at this point.  We discuss put operations in Section~\ref{ssec:put-proof}, and gets and scans in Section~\ref{ssec:get-proof}. 
 The linearization point of operation $op$ is denoted \lp{op}. 
 
 
@@ -62,12 +62,12 @@ The linearization point of operation $op$ is denoted \lp{op}.
 We first argue that rebalance operations preserve the integrity of the data structure.  
 To this end, we introduce some definitions. 
 We say that a chunk $C$ is \emph{accessible} in \kiwi\ if $C$ is connected to the linked list, 
-that is, if traversing the lined list from its head to its tail goes through $C$. 
+that is, if traversing the linked list from its head to its tail goes through $C$. 
 While a chunk is accessible its key range is well-defined: 
 We say that key $k$ is in the \emph{range} of chunk $C$ if $k \geq C$.\code{minKey} and $k < C.$\code{next.minKey}.
 
 When all the entries in a chunk's PPA are frozen, we say that the chunk is \emph{frozen}. 
-Observe that a put operation can successfully complete in chunk $C$ at a time $t$ only if  (1) $C$ is accessible  at some time $t'<t$, 
+Observe that a put operation can successfully assign a PPA version (phase 2 of put) in chunk $C$ at a time $t$ only if  (1) $C$ is accessible  at some time $t'<t$, 
 and (2) $C$ is not frozen at time $t$. This is because once a thread's PPA entry is frozen, its attempt to CAS it inevitably fails and it triggers rebalance.
 We say that a chunk is \emph{mutable} if these two conditions are satisfied. Similarly, a chunk is \emph{immutable} before it first becomes accessible 
 and again after the freezing stage of its rebalance is complete. 
@@ -95,7 +95,7 @@ before freezing the old chunks holding the same key range (stage (2)).
 Moreover, once a chunk is engaged (stage (1)), it is associated with a unique rebalance object \code{ro}
 whose next pointer is set to $\bot$, 
 and hence the segment of chunks associated with \code{ro} cannot change. 
-Using a CAS to set $C$'s predecessor \code{next} pointer to $C_f$ ensures 
+Using a CAS to set $C$'s predecessor's \code{next} pointer to $C_f$ ensures 
 that the old immutable chunk is replaced by at most one new accessible mutable chunk.
 \item
 Chunks are indexed according to their \code{minKey}, and 
@@ -103,6 +103,12 @@ the rebalance protocol does not index new chunks (stage (6)) before making them 
 Before a chunk ceases to be accessible, it must be frozen. 
 \end{enumerate}
 \end{proof}
+
+From Invariant~\ref{invariant:rebalance}, we derive the correct execution of the locate function:
+\begin{corollary}
+The locate(key) function  (lines~\ref{l:locate-start}-\ref{l:locate-end}) always returns a chunk $C$ s.t. key is in $C$'s range.
+Moreover, if key is in the range of some chunk $C$ that is mutable throughout the execution of locate, then locate returns $C$.
+\end{corollary}
 
 In addition to preserving the data structure's integrity, rebalance ensures that no key-value pairs disappear from the data structure due to rebalancing. 
 We say that a key-value pair $\langle$key, val$ \rangle$ is \emph{stored in} \kiwi\ at time $t$ in execution $\sigma$ if invoking get(key) at the end of $\sigma$
@@ -118,8 +124,8 @@ By Invariant~\ref{invariant:rebalance}(1), key is in the range of exactly one ac
 and the returned val is the one associated with key with the highest version (with ties broken by valPtr). 
 Observe that as long as $C$ remains accessible at time $t'$, its range does not change because \code{minKey} is invariant, and if $C$'s successor is 
 replaced by rebalance, it is replaced with a chunk with the same \code{minKey}. 
-
 Since no   subsequent put(key,$\_$)  operations are invoked in $\sigma$, val remains the highest-version value associated with key in $C$, and we are done.
+
 It remains to show that a rebalance that removes $C$ does not remove $\langle$key, val$ \rangle$ from \kiwi, from which the proposition follows   inductively.
 %Consider therefore a rebalance that engages $C$.  %Once $C$.\code{ro} is set, it does not change.
 This, in turn, follows from the facts that (1) the highest-versioned value associated with each key in an old chunk $C$ is cloned into a new chunk; and 
@@ -148,12 +154,12 @@ There are two options:
 \begin{enumerate}
 \item If at time $t$
 $po$'s full version $\langle v, j \rangle$ is the highest for $k$ in $C$, (among entries in $C$'s {PPA} and  linked list),
-then  \lp{po} is the last step reading $v$ from \code{GV} before $t$ (line~\ref{l:put-LP} or~\ref{l:put-helped-LP}). 
+then  \lp{po} is the last step (by any thread) that reads $v$ from \code{GV} before $t$ (line~\ref{l:put-LP} or~\ref{l:put-helped-LP}). 
 \item  Otherwise, let $po'$ be the 
 \code{put($k,\_$)} operation that assigns for $k$ in $C$ the smallest full version exceeding $po$'s
-before time $t$. Then \lp{po} is recursively defined to be \lp{po'}. Note that 
+before time $t$. Then \lp{po} is recursively defined to be at the same time as \lp{po'}. Note that 
 $po$'s full version assignment time exceeds that of  $po'$, so the recursive definition does not induce cycles. 
-In case multiple puts are assigned to the same point, they are linearized in increasing full version order.
+In case multiple puts are assigned linearization points the same time, they are linearized in increasing full version order.
 \end{enumerate}
 
 
@@ -174,8 +180,8 @@ operation $po=$\code{put($k, \_$)} that assigns $\langle v, j\rangle$ to $C$.\co
 \setlength{\parskip}{0pt}
 \item \label{proof:put:lp1} \lp{po} is after $po$ allocates location $j$ for its value and before $t$.
 \item \label{proof:put:lp2} \lp{po} is a read step of \code{GV} that occurs after \code{GV} is set to $v$.
-\item \label{proof:put:lp3} \lp{po} is after some operation $po'$ (possibly $po$, but not necessarily) publishes for $k$ to $C$ where later $po'$ assigns a full version equal to or greater than $\langle v, j\rangle$.
-\item \label{proof:put:lp4} The linearization points of all operations that publish $k$ to $C$ preserve their full version order.
+\item \label{proof:put:lp3} \lp{po} is after some operation $po'$ (possibly $po$, but not necessarily) publishes a put of $k$ in $C$, where later $po'$ assigns a full version equal to or greater than $\langle v, j\rangle$.
+\item \label{proof:put:lp4} The linearization points of all operations that publish puts of $k$ in $C$ preserve their full version order.
 \end{enumerate}
 \end{lemma}
 %\item \label{proof:put:lp5} At time $t_0$, the value published to $k$ by the put with the latest linearization point before $t_0$ is associated with the highest full version in C's linked list.

@@ -159,7 +159,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 
 		\Procedure{put}{key, val}	
  \LineComment {\em 1. prepare cell to insert}
-		\State locate target chunk $C$
+		\State $C \leftarrow$ locate(key)
 \label{l:put-prep}
 		\If{\codeF{checkRebalance($C$, \codeF{key, val}})}   \label{l:put-rebalance0}
 			 return \Comment{required rebalance completed the put}
@@ -172,7 +172,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 		\State \codeF{v[j]} $\leftarrow$ \codeF{val}
 		\State \codeF{k[i]} $\leftarrow \langle\codeF{key}, \bot, \codeF{j}, \bot\rangle$ \Comment{version and list connection not set yet}
 \label{l:put-prep-end}
- \LineComment {\em 2. get version via PPA}
+ \LineComment {\em 2. set PPA version}
 		\State \codeF{$C.$ppa[t].idx}  $\leftarrow$  \codeF{i}
 \label{l:put-version}
 		\State \codeF{gv} $\leftarrow$ \codeF{GV}      \label{l:put-LP}
@@ -199,7 +199,18 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 	\State  $C$.\codeF{ppa[t]} $\leftarrow \langle \bot, \bot \rangle$
 \label{l:put-clean}
 	\EndProcedure
-	\algstore{kiwi} 
+	\Statex
+\Procedure{locate}{key} \label{l:locate-start}
+	\State search\_key $\leftarrow$ key
+	\Repeat	\Comment{Find unfrozen chunk to begin traversal} 
+		\State 	$C_0 \leftarrow$ index.lookup(search\_key) \Comment{  $C_0$.\codeF{minKey} $\le$  search\_key } 
+		\State         search\_key $\leftarrow$ $C_0$.\codeF{minKey}$-1$ \Comment{ if $C_0$ is frozen, look for smaller key }
+	\Until{$C_0$ is not frozen}
+	\State traverse linked list from $C_0$ until the last chunk $C$ s.t.\ $C$.\code{next.minKey}  < key
+	\State return $C$
+\EndProcedure	 \label{l:locate-end}
+%%
+\algstore{kiwi} 
 \end{algorithmic}
 \caption{\kiwi\ put operation -- pseudocode for thread \code{t}.}
 \label{alg:put-ops}
@@ -214,8 +225,14 @@ concurrent scans, gets, and rebalances via the PPA; and (3) connect  the new cel
 
 %For simplicity we describe the algorithm as if both the key and value are embedded in the cell; in practice, to support variable length values the cell %can consist of pointer to where the value is stored.
 
-The first phase (lines~\ref{l:put-prep}--\ref{l:put-prep-end})
-locates the target chunk $C$, traversing the index and the linked list if needed. Later this phase allocates space for the key and the variable-length value, by increasing $C$'s array  counters to the next available indices \code{i} and \code{j} for \code{k} and \code{v}, resp.
+To locate the target chunk (lines~\ref{l:locate-start}-\ref{l:locate-end}), we first lookup the search key in the index. If the returned chunk is frozen, 
+it is possible that it is no longer connected to the linked list, and hence we re-search the index with a smaller key. Because the head of the linked list is never frozen, 
+and the number of keys is finite, this process eventually returns an unfrozen chunk. 
+Locate then traverses the linked list until the chunk the sought key belongs in.
+
+The first phase of put (lines~\ref{l:put-prep}--\ref{l:put-prep-end})
+locates the target chunk $C$ and  allocates space for the key and the variable-length value 
+by increasing $C$'s array  counters to the next available indices \code{i} and \code{j} for \code{k} and \code{v}, resp.
 This is done using atomic F\&I and F\&A, so in case of concurrent put operations, each thread gets its own cells.
 
 Before increasing \code{i} and \code{j}, put checks if rebalancing is needed, because the chunk is full, imbalanced, or immutable, 
@@ -257,7 +274,7 @@ Finally, the PPA version is cleared (line \ref{l:put-clean}).
 \begin{algorithmic}[1]{}
 	\algrestore{kiwi} 
 	\Procedure{get}{key}	
-		\State locate target chunk $C$ \label{l:get-start}
+		\State $C \leftarrow$ locate(key) \label{l:get-start}
 		\State \codeF{helpPendingPuts($C$, key, key)}
 		\State return \codeF{findLatest(key, $\infty$, $C$)}
 	\EndProcedure
@@ -275,7 +292,8 @@ Finally, the PPA version is cleared (line \ref{l:put-clean}).
 %%%  \Comment{accounts for the case that a version had already been assigned}
 \label{l:scan-version-end}
 	 \LineComment {\em 2. scan relevant keys}
-		\ForAll{chunk $C$ in query range} \label{l:scan-scan}
+ 		\State $C \leftarrow$ locate(fromKey)  \label{l:scan-scan}
+		\ForAll{chunk $C$ in query range}
 			\State \codeF{helpPendingPuts($C$, fromKey, toKey)}
 			\ForAll{key in query range}
 				\State return \codeF{findLatest(key, ver, $C$)}
@@ -325,8 +343,7 @@ Finally, the PPA version is cleared (line \ref{l:put-clean}).
 \subsubsection{Gets and scans.}
 
 Gets and scans are presented in Algorithm~\ref{alg:get-ops}.
-A \code{get(key)} begins by querying the index for \code{key}, and then (if needed), traverses the linked-list of chunks until
-the next chunk's \code{minKey} exceeds \code{key} (line \ref{l:get-start}).
+A \code{get(key)} begins by locating the chunk $C$ where key belongs (line \ref{l:get-start}).
 If there is a pending put to \code{key} that does not have a version yet, (i.e., its version is $\bot$), get attempts to help it by setting its version to
 the current value of \code{GV} using CAS  (line \ref{l:get-help}). (CAS may fail in case the put sets its own version or is helped or frozen by another thread).
 It then calls \code{findLatest()}  to find the latest version of the searched key.
@@ -341,7 +358,10 @@ and attempts to set it as its scan time while synchronizing itself relative to h
 as described below.
 
 It then reads all the keys in the relevant range (lines \ref{l:scan-scan}--\ref{l:scan-scan-end})
-by traversing the list of chunks, and within each chunk, proceeding as get does to help all pending puts and find the latest version of each key.
+by locating \code{fromKey}, and then 
+traversing the list of chunks  until
+the next chunk's \code{minKey} exceeds \code{toKey}.
+Within each chunk, it proceeds as get does to help all pending puts and find the latest version of each key.
 
 \subsubsection{Ordering operations.}
 
