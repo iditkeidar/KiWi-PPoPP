@@ -128,8 +128,8 @@ Since no   subsequent put(key,$\_$)  operations are invoked in $\sigma$, val rem
 
 It remains to show that a rebalance that removes $C$ does not remove $\langle$key, val$ \rangle$ from \kiwi, from which the proposition follows   inductively.
 %Consider therefore a rebalance that engages $C$.  %Once $C$.\code{ro} is set, it does not change.
-This, in turn, follows from the facts that (1) the highest-versioned value associated with each key in an old chunk $C$ is cloned into a new chunk; and 
-(2) the entire chunk segment is replaced atomically by first marking the next pointer of the last engaged chunk to prevent it from changing, and then 
+It follows from the facts that (1) the highest-versioned value associated with each key in an old chunk $C$ is cloned into a new chunk; and 
+(2) the entire chunk segment is replaced atomically by marking the next pointer of the last engaged chunk to prevent it from changing, and then 
 CASing the predecessor of the first engaged chunk.
  \end{proof}
 
@@ -188,18 +188,18 @@ operation $po=$\code{put($k, \_$)} that assigns $\langle v, j\rangle$ to $C$.\co
 %For every key k and time t when k is in the range of a chunk C that is accessible (either from the index or from the chunks list), the value published to k by the put with the latest LP before t is associated with the highest location-based version in C's linked list and PPA.
 \begin{proof}
 We consider an execution interval $\pi$ which spans the execution intervals of all operations that publish $k$ to $C$ .
-Denote by $t_1, t_2, \ldots $ the finite sequence of times these operations assigned versions $v_1, v_2, \ldots$ into entries in the \code{ppa} by their order in $\pi$, where $t_i$ is the assignment time of operation $op_i$; the locations each operation allocated for its value are $j_1, j_2, \ldots$, respectively (see Figure~\ref{fig:proof-put-base}).
+Denote by $t_1, t_2, \ldots $ the finite sequence of times these operations assigned versions $v_1, v_2, \ldots$ into entries in the \code{ppa} by their order in $\pi$, where $t_i$ is the assignment time of operation $op_i$; the locations each operation allocated for its value are $j_1, j_2, \ldots$, respectively (see Figure~\ref{fig:proof-put}).
 
-The proof is by induction on $i$. For the base case, we consider $op_1$. It is the first to publish its version in the \code{ppa}. 
+The proof is by induction on $i$. For the base case, we consider $op_1$. It is the first to publish its version in the \code{ppa}  (see Figure~\ref{fig:proof-put-base}). 
 All entries of key $k$ from previous epochs are written in $C$ during the rebalance operation that created $C$; their version is smaller or equal to $v_1$, and their location is smaller than $j_1$. 
 Therefore, the full version of these entries is smaller than $\langle v_1, j_1\rangle$  and $op_1$ is linearized in the last read step of the global version counter that returns $v_1$ before $t_1$. Clearly this is after $op_1$ is published (line~\ref{l:put-prep-end}), and specifically after $j_1$ is allocated (line~\ref{l:put-cas-j}), and the lemma holds.
 
 For the induction step, assume the lemma holds for operations $op_1, \ldots op_{i-1}$. We prove the lemma for operation $op_i$ by case analysis.
-If $op_i$'s full version $\langle v_i, j_i\rangle$ is maximal in $C$ (with respect to all linked cells and published entries with the same key) then \lp{op_i} is the last read retrieving $v_i$ from the global counter. This step is done after the put is published in the \code{ppa} (which is after $j_i$ is allocated) and before $t_i$, and Conditions~\ref{proof:put:lp1}-\ref{proof:put:lp3} of the lemma hold. In addition, by the induction hypothesis, linearization points of $op_1, \ldots op_{i-1}$ preserve their full version order. They are all linearized in read steps after the global version counter is set to their versions, specifically not later than \lp{op_i}---the latest read step returning the maximal version, hence Condition~\ref{proof:put:lp4} holds as well.
+If $op_i$'s full version $\langle v_i, j_i\rangle$ is maximal in $C$ (with respect to all linked cells and published entries with the same key) then \lp{op_i} is the last read retrieving $v_i$ from the global counter  (see Figure~\ref{fig:proof-put-ind1}). This step is done after the put is published in the \code{ppa} (which is after $j_i$ is allocated) and before $t_i$, and Conditions~\ref{proof:put:lp1}-\ref{proof:put:lp3} of the lemma hold. In addition, by the induction hypothesis, linearization points of $op_1, \ldots op_{i-1}$ preserve their full version order. They are all linearized in read steps after the global version counter is set to their versions, specifically not later than \lp{op_i}---the latest read step returning the maximal version, hence Condition~\ref{proof:put:lp4} holds as well.
 
-Otherwise, another operation $op_l$ published $\langle v_l, j_l\rangle$ in $\sigma_l$ before $\sigma_i$, s.t. $\langle v_l, j_l\rangle > \langle v_i, j_i\rangle$. By definition, $op_i$ is linearized exactly at the point (\lp{op_l}) which preserves the full version order of the operations, and Condition~\ref{proof:put:lp4} holds. By Condition~\ref{proof:put:lp3} of the induction hypothesis, \lp{op_l} is after an operation publishes $k$ to $C$ (and later assigns a full version equal or greater than $\langle v_l, j_l\rangle$). Since $\langle v_l, j_l\rangle > \langle v_i, j_i\rangle$, Condition~\ref{proof:put:lp3} also holds. \eshcar{ADD FIGURES}
+Otherwise, another operation $op_l$ published $\langle v_l, j_l\rangle$ in $t_l$ before $t_i$, s.t. $\langle v_l, j_l\rangle > \langle v_i, j_i\rangle$. By definition, $op_i$ is linearized exactly at the point (\lp{op_l}) which preserves the full version order of the operations, and Condition~\ref{proof:put:lp4} holds. By Condition~\ref{proof:put:lp3} of the induction hypothesis, \lp{op_l} is after an operation publishes $k$ to $C$ (and later assigns a full version equal or greater than $\langle v_l, j_l\rangle$). Since $\langle v_l, j_l\rangle > \langle v_i, j_i\rangle$, Condition~\ref{proof:put:lp3} also holds. 
 
-It is left to discuss Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. Consider first the case where $v_l>v_i$. By Condition~\ref{proof:put:lp2} of the induction hypothesis \lp{op_l} is in a read step of the global version counter that occurred after it is set to $v_l$. $op_i$ eventually publishes the version $v_i$ which is smaller than $v_l$. This implies $op_i$ published the operation in the \code{ppa} before the version counter is set to $v_l$, and  \lp{op_i} satisfies Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. If $v_l =v_i$ and $j_l>j_i$ then $op_l$ allocated $j_l$ after $op_i$ allocated $j_i$. By Condition~\ref{proof:put:lp1} of the induction hypothesis, \lp{op_l} is after $op_l$ allocated $j_l$  and before $\sigma_l$, and  \lp{op_i} satisfies Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. \eshcar{ADD FIGURES}
+It is left to discuss Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. Consider first the case where $v_l>v_i$  (see Figure~\ref{fig:proof-put-ind2}). By Condition~\ref{proof:put:lp2} of the induction hypothesis \lp{op_l} is in a read step of the global version counter that occurred after it is set to $v_l$. $op_i$ eventually publishes the version $v_i$ which is smaller than $v_l$. This implies $op_i$ published the operation in the \code{ppa} before the version counter is set to $v_l$, and  \lp{op_i} satisfies Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. If $v_l =v_i$ and $j_l>j_i$  (see Figure~\ref{fig:proof-put-ind3}) then $op_l$ allocated $j_l$ after $op_i$ allocated $j_i$. By Condition~\ref{proof:put:lp1} of the induction hypothesis, \lp{op_l} is after $op_l$ allocated $j_l$  and before $t_l$, and  \lp{op_i} satisfies Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. 
 
 \end{proof}
 
@@ -207,26 +207,26 @@ It is left to discuss Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. Co
   \centering
   \begin{subfigure}[t]{1.0\columnwidth}
       \includegraphics[scale=0.5]{proof-put-base.pdf}
-      \caption[]{Base case: ...}
+      \caption[]{Base case: $\langle v_1, j_1\rangle$ is maximal in $t_1$}
     \label{fig:proof-put-base}  
   \end{subfigure}   \hskip .1\columnwidth
   \begin{subfigure}[t]{1.0\columnwidth}
-      \includegraphics[scale=0.5]{proof-put-base.pdf}
-      \caption[]{Induction step: ...}
+      \includegraphics[scale=0.5]{proof-put-ind1.pdf}
+      \caption[]{Induction step: case $\langle v_i, j_i\rangle$ is maximal in $t_j$ }
     \label{fig:proof-put-ind1}
   \end{subfigure}
   \begin{subfigure}[t]{1.0\columnwidth}
-      \includegraphics[scale=0.5]{proof-put-base.pdf}
-      \caption[]{Induction step: ...}
+      \includegraphics[scale=0.5]{proof-put-ind2.pdf}
+      \caption[]{Induction step: case $v_l > v_i$ and $t_l<t_i$}
     \label{fig:proof-put-ind2}
   \end{subfigure}
   \begin{subfigure}[t]{1.0\columnwidth}
-      \includegraphics[scale=0.5]{proof-put-base.pdf}
-      \caption[]{Induction step: ...}
+      \includegraphics[scale=0.5]{proof-put-ind3.pdf}
+      \caption[]{Induction step: case $v_l = v_i$, $j_l > j_i$ and $t_l<t_i$}
     \label{fig:proof-put-ind3}
   \end{subfigure}
 
-\caption{Linearization points of put operations. } 
+\caption{Linearization points of put operations publishing key $k$ in chunk $C$. $t_1, t_2, \ldots $ is the sequence of times these operations assigned versions into $C$'s \code{ppa}} 
 \label{fig:proof-put}
 \end{figure*}
 
