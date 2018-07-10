@@ -167,7 +167,7 @@ The following lemma
 establishes the order among linearization points of puts within one epoch.
 \begin{lemma}
 \label{proof:put}
-Consider chunk $C$ accessible as of time $t_0$, key $k$ in the range of $C$, and an
+Consider chunk $C$, key $k$ in the range of $C$, and an
 operation $po=$\code{put($k, \_$)} that assigns $\langle v, j\rangle$ to $C$.\code{ppa} at time $t$. Then  
 \begin{enumerate}
 \setlength{\itemsep}{0pt}
@@ -186,7 +186,7 @@ Denote by $t_1, t_2, \ldots $ the finite sequence of times these operations assi
 
 The proof is by induction on $i$. For the base case, we consider $op_1$. It is the first to publish its version in the \code{ppa}. 
 All entries of key $k$ from previous epochs are written in $C$ during the rebalance operation that created $C$; their version is smaller or equal to $v_1$, and their location is smaller than $j_1$. 
-Therefore, the full version of these entries is smaller than $\langle v_1, j_1\rangle$  and $op_1$ is linearized in the last read step of the global version counter that returns $v_1$ before $t_1$. Clearly this is after $op_1$ is published, and specifically after $j_1$ is allocated, and the lemma holds.
+Therefore, the full version of these entries is smaller than $\langle v_1, j_1\rangle$  and $op_1$ is linearized in the last read step of the global version counter that returns $v_1$ before $t_1$. Clearly this is after $op_1$ is published (line~\ref{l:put-prep-end}), and specifically after $j_1$ is allocated (line~\ref{l:put-cas-j}), and the lemma holds.
 
 For the induction step, assume the lemma holds for operations $op_1, \ldots op_{i-1}$. We prove the lemma for operation $op_i$ by case analysis.
 If $op_i$'s full version $\langle v_i, j_i\rangle$ is maximal in $C$ (with respect to all linked cells and published entries with the same key) then \lp{op_i} is the last read retrieving $v_i$ from the global counter. This step is done after the put is published in the \code{ppa} (which is after $j_i$ is allocated) and before $t_i$, and Conditions~\ref{proof:put:lp1}-\ref{proof:put:lp3} of the lemma hold. In addition, by the induction hypothesis, linearization points of $op_1, \ldots op_{i-1}$ preserve their full version order. They are all linearized in read steps after the global version counter is set to their versions, specifically not later than \lp{op_i}---the latest read step returning the maximal version, hence Condition~\ref{proof:put:lp4} holds as well.
