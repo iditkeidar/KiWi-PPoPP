@@ -297,15 +297,3 @@ Condition~\ref{proof:put:lp1} of Lemma~\ref{proof:put} implies the same for puts
 It is easy to show \eshcar{show it!! before the lemmas} that gets and scans land in chunks that contain the saught keys in their ranges. Combined with the rebalancing invariants,
 Lemma~\ref{proof:get} shows that get operations satisfy their sequential specification, and Lemma~\ref{proof:scan} proves that scans satisfy their sequential specification. 
 Hence we conclude that \kiwi\ implements a linearziable map. 
-
-
-\subsection{Liveness}
-\label{sec:live}
-
-
-The proof shows that (1) every get and scan completes within a finite number of steps, and (2) in every execution, \emph{some} put operation completes. We omit it for lack of space.
-
- {\kiwi}'s gets and scans are \emph{wait-free}, namely, in any execution, every operation completes within a finite number of steps by its invoking thread. The proof shows that the number of iterations in the loops in these operations is finite. 
-
-We further prove that put operations are \emph{lock-free}, namely, in every execution, \emph{some} operation completes. We show that although a put operation can execute an infinite number of rebalances, this occurs because 
-some operation (and in fact many operations) successfully complete a put.
