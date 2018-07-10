@@ -188,7 +188,7 @@ operation $po=$\code{put($k, \_$)} that assigns $\langle v, j\rangle$ to $C$.\co
 %For every key k and time t when k is in the range of a chunk C that is accessible (either from the index or from the chunks list), the value published to k by the put with the latest LP before t is associated with the highest location-based version in C's linked list and PPA.
 \begin{proof}
 We consider an execution interval $\pi$ which spans the execution intervals of all operations that publish $k$ to $C$ .
-Denote by $t_1, t_2, \ldots $ the finite sequence of times these operations assigned versions $v_1, v_2, \ldots$ into entries in the \code{ppa} by their order in $\pi$, where $t_i$ is the assignment time of operation $op_i$; the locations each operation allocated for its value are $j_1, j_2, \ldots$, respectively.
+Denote by $t_1, t_2, \ldots $ the finite sequence of times these operations assigned versions $v_1, v_2, \ldots$ into entries in the \code{ppa} by their order in $\pi$, where $t_i$ is the assignment time of operation $op_i$; the locations each operation allocated for its value are $j_1, j_2, \ldots$, respectively (see Figure~\ref{fig:proof-put-base}).
 
 The proof is by induction on $i$. For the base case, we consider $op_1$. It is the first to publish its version in the \code{ppa}. 
 All entries of key $k$ from previous epochs are written in $C$ during the rebalance operation that created $C$; their version is smaller or equal to $v_1$, and their location is smaller than $j_1$. 
@@ -202,6 +202,33 @@ Otherwise, another operation $op_l$ published $\langle v_l, j_l\rangle$ in $\sig
 It is left to discuss Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. Consider first the case where $v_l>v_i$. By Condition~\ref{proof:put:lp2} of the induction hypothesis \lp{op_l} is in a read step of the global version counter that occurred after it is set to $v_l$. $op_i$ eventually publishes the version $v_i$ which is smaller than $v_l$. This implies $op_i$ published the operation in the \code{ppa} before the version counter is set to $v_l$, and  \lp{op_i} satisfies Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. If $v_l =v_i$ and $j_l>j_i$ then $op_l$ allocated $j_l$ after $op_i$ allocated $j_i$. By Condition~\ref{proof:put:lp1} of the induction hypothesis, \lp{op_l} is after $op_l$ allocated $j_l$  and before $\sigma_l$, and  \lp{op_i} satisfies Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. \eshcar{ADD FIGURES}
 
 \end{proof}
+
+\begin{figure*}[tb]
+  \centering
+  \begin{subfigure}[t]{1.0\columnwidth}
+      \includegraphics[scale=0.5]{proof-put-base.pdf}
+      \caption[]{Base case: ...}
+    \label{fig:proof-put-base}  
+  \end{subfigure}   \hskip .1\columnwidth
+  \begin{subfigure}[t]{1.0\columnwidth}
+      \includegraphics[scale=0.5]{proof-put-base.pdf}
+      \caption[]{Induction step: ...}
+    \label{fig:proof-put-ind1}
+  \end{subfigure}
+  \begin{subfigure}[t]{1.0\columnwidth}
+      \includegraphics[scale=0.5]{proof-put-base.pdf}
+      \caption[]{Induction step: ...}
+    \label{fig:proof-put-ind2}
+  \end{subfigure}
+  \begin{subfigure}[t]{1.0\columnwidth}
+      \includegraphics[scale=0.5]{proof-put-base.pdf}
+      \caption[]{Induction step: ...}
+    \label{fig:proof-put-ind3}
+  \end{subfigure}
+
+\caption{Linearization points of put operations. } 
+\label{fig:proof-put}
+\end{figure*}
 
 
 \subsubsection{Gets and scans.}
@@ -282,169 +309,3 @@ The proof shows that (1) every get and scan completes within a finite number of 
 
 We further prove that put operations are \emph{lock-free}, namely, in every execution, \emph{some} operation completes. We show that although a put operation can execute an infinite number of rebalances, this occurs because 
 some operation (and in fact many operations) successfully complete a put.
-
----------------------------
-\newcommand{\abs}[1]{\mid{#1}\mid}
-
-We now show that \emph{get} and \emph{scan} operations are wait-free, and \emph{put} operations are lock-free.
-
-We say that a sequence $\pi_s$ is a \emph{sub-execution}, if $\pi_s$ is a suffix (or a prefix) of an execution.
-We say that thread $t$ is \emph{running} in a sub-execution $\pi_s$, if at least one step in $\pi_s$ is executed by thread $t$.
-%
-Given two keys $K_1$ and $K_2$, we write $\abs{K_2 - K_1}$ to denote the number of possible keys between $K_1$ and $K_2$ (notice that $\abs{K_2 - K_1}$ is always a finite number because each key is stored in a bounded number of bytes).
-%
-Given a chunk $X$, we write $min(X)$ to denote the minimal key in $X$ (as mentioned before, $min(X)$ is never changed during the lifetime of $X$).
-
-
-
-\begin{lemma}
-\label{proof:orderLemma}
-Let $\pi = C_0,s_1,C_1, \ldots,s_i,C_i,\ldots$ be an execution.
-Let $X$ and $Y$ be two chunks in configuration $C_i$ such that $Y=X.next$.
-For any configuration $C_j$ such that $j \geq i$ we have  $min(X) < min(Y)$ in $C_j$.
-\end{lemma}
-\begin{proof}
-The algorithm writes the address of $Y$ in $X.next$ only if $min(X) < min(Y)$
-(this happens either at line $22$ of the function \emph{Kiwi::Replace}, or within the function \emph{balance()}).
-Since $min(X)$ and $min(Y)$ are never changed, $min(X) < min(Y)$ in  any $C_j$ such that $j \geq i$.
-
-\end{proof}
-
-\begin{lemma}
-\label{proof:aaaaaaaa}
-The function \emph{get} is wait-free.
-\end{lemma}
-\begin{proof}
-We prove that \emph{get} is wait-free by showing that the functions \emph{Kiwi::FindChunk} and \emph{Chunk::Find} are wait-free.
-
-The function \emph{Kiwi::FindChunk} has a single loop: we write ${next}_i$ to denote the value of variable \emph{next} at the beginning of the $i$-th iteration of the loop.
-%
-Because of Lemma~\ref{proof:orderLemma}, $min({next}_i) < min({next}_{i+1})$.
-Hence the loop terminates after at most $\abs{key - min({next}_1)}$ iterations.
-%
-Since all the functions invoked by \emph{Kiwi::FindChunk} are wait-free, each invocation of \emph{Kiwi::FindChunk} by thread $t$ completes within a finite number of steps by $t$.
-
-The function \emph{Chunk::Find} invokes the functions \emph{Chunk::FindInPendingList} and \emph{Chunk::FindInCellList}.
-The loop in \emph{Chunk::FindInPendingList} completes after a constant number of iterations.
-The function \emph{Chunk::FindInCellList} goes over the chunk's link-list exactly once (this link-list has at most $M$ cells).
-Hence, each invocation of \emph{Chunk::Find} by thread $t$ completes within a finite number of steps by $t$.
-
-\end{proof}
-
-
-
-\begin{lemma}
-\label{proof:aaaaaaaa}
-The function \emph{scan} is wait-free.
-\end{lemma}
-
-\begin{proof}
-All functions invoked by \emph{scan} are wait-free.
-It is sufficient to show that the loops in  \emph{scan} have
-a finite number of iterations.
-
-The function \emph{scan} has two nested loops:
-we write $L_e$ to denote the external loop (begins at line $10$), and $L_i$ to denote the internal loop (begins at line $12$).
-Let ${key}_i$ be the value of variable \emph{key} at the end of the $i$-th iteration of $L_e$.
-Each ${key}_i$ is equal to the minimal key of the chunk which is handled by iteration $i+1$
-(this chunk is pointed by the variable \emph{chunk}).
-Because of Lemma~\ref{proof:orderLemma}, if $L_e$ has (at least) $i+1$ iterations then ${key}_i < {key}_{i+1}$.
-%Since the chunks are sorted according to their minimal keys, ${key}_i < {key}_{i+1}$ for any $i$.
-Hence, $L_e$ has at most  $\abs{maxKey - minKey}$ iterations.
-
-The loop $L_i$ goes over the link-list of a chunk (this link-list has at most $M$ elements), hence $L_i$ has at most $M$ iterations.
-
-Therefore, each invocation of \emph{scan} by thread $t$ completes within a finite number of steps by $t$.
-
-\end{proof}
-
-
-
-
-
-\begin{lemma}
-\label{proof:aaaaaaaa}
-The function \emph{put} is lock-free.
-\end{lemma}
-\begin{proof}
-We prove by contradiction.
-Assume that \emph{put} is not lock-free.
-Hence there exists an infinite execution $\pi = C_0,s_1,C_1,\ldots$ such that
-after configuration $C_{k0}$ ($k0 \geq 0$) no operation completes and no new operation is invoked.
-%no operation completes after configuration $C_{k0}$.
-%
-We have already shown that \emph{get} and \emph{scan} are wait-free,
- therefore there exists configuration $C_{k1}$ in $\pi$ ($k0 \leq k1$) such that after $C_{k1}$ all the running threads execute  \emph{put} operations.
-
-
-We write \emph{$t:X$.allocate} to denote an invocation of \emph{allocate} on chunk $X$ by thread $t$
-(\emph{allocate} is invoked by function \emph{put} at line $6$).
-We say that invocation \emph{t:$X$.allocate} is \emph{successful}
-if it returns a reference to a valid cell (i.e., it returns a non-null value).
-
-Consider an execution of the loop in function \emph{put} by thread $t$.
-If \emph{$t:X$.allocate} is not successful at iteration $i+1$ ($i \geq 1$) of $t$ ,
-then at iteration $i$ the invocation of \emph{$t:Y$.allocate} is also not successful.
-Hence thread $t$ invokes \emph{Rebalance($Y$)} at the end of iteration $i$.
-Therefore $Y \neq X$ and chunk $X$ has been added to kiwi (at some point) during iterations $i$ and $i+1$ of $t$
-(when a chunk is added to kiwi, this chunk is not full).
-Therefore another thread $t' \neq t$ successfully invoked \emph{$t':X$.allocate} (at some point) during iterations $i$ and $i+1$ of $t$
-(otherwise \emph{$t:X$.allocate} should be successful).
-%
-Since a thread do not start new iteration of this loop after a successful invocation of \emph{allocate} (see lines $6$--$9$ in \emph{put}),
- we know that there exists configuration $C_{k2}$ in $\pi$ ($k1 \leq k2$) such that:
-after $C_{k2}$ the \emph{put} operations do not start new iterations of this loop.
-
-Since \emph{allocate} is wait-free, there exists configuration $C_{k3}$ in $\pi$ ($k2 \leq k3$) such that
-no thread executes \emph{allocate} after $C_{k3}$.
-Hence, no chunk becomes full in $\pi$ after configuration $C_{k3}$.
-
-
-%Consider the loop in function \emph{put}.
-%This loop may have iteration $i+1$ only if \emph{chunk.allocate} is not successful at iteration $i$ ---
-%this can only happen if (at some point) after the beginning the $i$-th iteration a concurrent \emph{put} operation has successfully invoked \emph{chunk.allocate} on the same chunk.
-%Hence there exists configuration $C_{k2}$ in $\pi$ ($k1 \leq k2$) such that: after $C_{k2}$ the \emph{put} operations do not start new iterations of this loop.
-
-In the following paragraphs we focus on the functions \emph{Kiwi::Rebalance} and \emph{Kiwi::Replace}.
-Notice that \emph{Kiwi::Rebalance} calls to \emph{Kiwi::Replace}; and that \emph{Kiwi::Replace} recursively calls to \emph{Kiwi::Rebalance} in line $20$.
-An invocation of \emph{Kiwi::Rebalance} on chunk $X$ removes $X$ from kiwi:
-hence for each thread $t$ and chunk $X$, \emph{Rebalance($X$)} may be invoked at most once by $t$.
-
-Let $N_{puts}$ be the number of \emph{put} operations after configuration $C_{k3}$.
-Let $N_E$ be the maximal number of new chunks created by an invocation of \emph{balance()} (in our implementation $N_E=4$).
-Since after $C_{k3}$ no chunk may become full, at most $N_{puts} \times N_E$ new chunks may be created after $C_{k3}$.
-Therefore, after configuration $C_{k3}$ the threads invoke function  \emph{Kiwi::Rebalance} a finite number of times.
-Hence there exists a configuration $C_{k4}$ in $\pi$ ($k3 \leq k4$) such that \emph{Kiwi::Rebalance} is not invoked after $C_{k4}$.
-
-
-
-%Let $N_{puts}$ be the number of \emph{put} operations after configuration $C_{k2}$.
-%After $C_{k2}$, at most $N_{puts}$ chunks may become full.
-%If $N_E$ is the maximal number of new chunks created by an invocation of \emph{balance()},
-%then after configuration $C_{k2}$ at most $N_{puts} \times N_E$ new chunks may be created.
-%Therefore, after configuration $C_{k2}$ the threads invoke function  \emph{Kiwi::Rebalance} a finite number of times.
-%Hence there exists a configuration $C_{k3}$ in $\pi$ ($k2 \leq k3$) such that \emph{Kiwi::Rebalance} is not invoked after $C_{k3}$.
-
-%Consider the loop in \emph{Kiwi::Replace}.
-
-Since the other functions invoked by \emph{put} are lock-free\footnote{
-The other functions invoked by \emph{put}, \emph{Kiwi::Rebalance} and \emph{Kiwi::Replace} are lock-free:
-we assume that \emph{index.replace} is lock-free, the other ones are trivially wait-free.},
-there exists a configuration $C_{k5}$ in $\pi$ ($k4 \leq k5$) such that all the running threads
-after $C_{k5}$ execute the loop in \emph{Kiwi::Replace} (and this loop is never terminated).
-%
-Hence, the CAS at line $22$ always fails after configuration $C_{k5}$ (i.e., no CAS updates shared memory after $C_{k5}$).
-This is a contradiction, because the  CAS at line $22$ may fail only if shared memory has been updated since the beginning of the iteration.
-
-
-
-%
-%
-%
-%Consider the loop in \emph{Kiwi::Replace}.
-%Since the other functions are lock-free, there exists a configuration $C_{k4}$ in $\pi$ ($k3 \leq k4$) such that all the threads which are running after $C_{k4}$ do not exit from this loop.
-%Hence, the CAS at line $22$ always fails after configuration $C_{k4}$ (i.e., no CAS updates shared memory after $C_{k4}$).
-%This is a contradiction, because the  CAS at line $22$ may fail only if shared memory has been updated since the beginning of the iteration.
-
-\end{proof}
--------------------------
