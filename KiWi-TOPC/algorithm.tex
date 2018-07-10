@@ -166,7 +166,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 		\EndIf
 		\State \codeF{j} $\leftarrow$ F\&A($C$.\codeF{vCounter, val.size}) \Comment{allocate place for value} \label{l:put-cas-j}
 		\State \codeF{i} $\leftarrow$ F\&I($C$.\codeF{kCounter}) \Comment{allocate cell in linked list}
-		\If{ \codeF{j} $\geq$ \codeF{$C$.v.size} $\vee$  \codeF{i} $\geq$ \codeF{$C$.k.size}} 
+		\If{ \codeF{j} $\geq$ \codeF{$C$.v.size} $\vee$  \codeF{i} $\geq$ \codeF{$C$.k.size}}  \label{l:put-full}
 			\If {$\neg$\codeF{rebalance($C$, \codeF{key, val})}} \codeF{put(key, val)}  \EndIf 
 		\EndIf
 		\State \codeF{v[j]} $\leftarrow$ \codeF{val}
@@ -206,7 +206,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 		\State 	$C_0 \leftarrow$ index.lookup(search\_key) \Comment{  $C_0$.\codeF{minKey} $\le$  search\_key } 
 		\State         search\_key $\leftarrow$ $C_0$.\codeF{minKey}$-1$ \Comment{ if $C_0$ is frozen, look for smaller key }
 	\Until{$C_0$ is not frozen}
-	\State traverse linked list from $C_0$ until the last chunk $C$ s.t.\ $C$.\code{next.minKey}  < key
+	\State traverse linked list from $C_0$ until the last chunk $C$ s.t.\ $C$.\code{next} $=\bot$ or $C$.\code{next.minKey}  < key
 	\State return $C$
 \EndProcedure	 \label{l:locate-end}
 %%
@@ -293,7 +293,7 @@ Finally, the PPA version is cleared (line \ref{l:put-clean}).
 \label{l:scan-version-end}
 	 \LineComment {\em 2. scan relevant keys}
  		\State $C \leftarrow$ locate(fromKey)  \label{l:scan-scan}
-		\ForAll{chunk $C$ in query range}
+		\ForAll{chunk $C$ in query range} \label{l:scan-loop}
 			\State \codeF{helpPendingPuts($C$, fromKey, toKey)}
 			\ForAll{key in query range}
 				\State return \codeF{findLatest(key, ver, $C$)}
@@ -695,10 +695,13 @@ either way, it uses the version written by some successful CAS (line~\ref{l:scan
 			\EndFor
 		\EndFor
 	\EndFor
+	%
 	\LineComment {\em 5. replace}
-	\Do \Comment{set the next pointer and mark bit of the last old chunk to $C_n$'s next pointer and true} \label{l:mark}
+	\Repeat \Comment{set  next pointer \& mark bit of  last old chunk to $C_n$'s next pointer \& true} \label{l:mark}
 		\State $C_n$.\codeF{next} $\leftarrow$ \codeF{last.next}
-	\doWhile{$\neg$CAS(\codeF{last.next+mark}, $C_n$.\codeF{next}+false, $C_n$.\codeF{next}+true)} \label{l:mark-end}
+		\State CAS(\codeF{last.next+mark}, $C_n$.\codeF{next}+false, $C_n$.\codeF{next}+true) 
+%	\doWhile{$\neg$CAS(\codeF{last.next+mark}, $C_n$.\codeF{next}+false, $C_n$.\codeF{next}+true)} 
+	\Until{last.next+mark =  $C_n$.\codeF{next}+true} \label{l:mark-end}
 	\Do 
 		\State \codeF{pred} $\leftarrow$ $C$'s predecessor
 		\If{CAS(\codeF{pred.next+mark}, $C$+false, $C_f$+false)} \label{l:cas-pred}  \label{l:set-pred}
