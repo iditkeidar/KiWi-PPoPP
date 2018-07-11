@@ -164,7 +164,7 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 		\If{\codeF{checkRebalance($C$, \codeF{key, val}})}   \label{l:put-rebalance0}
 			 return \Comment{required rebalance completed the put}
 		\EndIf
-		\State \codeF{j} $\leftarrow$ F\&A($C$.\codeF{vCounter, val.size}) \Comment{allocate place for value} \label{l:put-cas-j}
+		\State \codeF{j} $\leftarrow$ F\&A($C$.\codeF{vCounter, val.size}) \Comment{alF place for value} \label{l:put-cas-j}
 		\State \codeF{i} $\leftarrow$ F\&I($C$.\codeF{kCounter}) \Comment{allocate cell in linked list}
 		\If{ \codeF{j} $\geq$ \codeF{$C$.v.size} $\vee$  \codeF{i} $\geq$ \codeF{$C$.k.size}}  \label{l:put-full}
 			\If {$\neg$\codeF{rebalance($C$, \codeF{key, val})}} \codeF{put(key, val)}  \EndIf 
@@ -201,11 +201,11 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 	\EndProcedure
 	\Statex
 \Procedure{locate}{key} \label{l:locate-start}
-	\State search\_key $\leftarrow$ key
-	\Repeat	\Comment{Find unfrozen chunk to begin traversal} 
-		\State 	$C_0 \leftarrow$ index.lookup(search\_key) \Comment{  $C_0$.\codeF{minKey} $\le$  search\_key } 
-		\State         search\_key $\leftarrow$ $C_0$.\codeF{minKey}$-1$ \Comment{ if $C_0$ is frozen, look for smaller key }
-	\Until{$C_0$ is not frozen}
+%	\State search\_key $\leftarrow$ key
+%	\Repeat	\Comment{Find unfrozen chunk to begin traversal} 
+		\State 	$C_0 \leftarrow$ index.lookup(key) \Comment{  $C_0$.\codeF{minKey} $\le$  key } 
+%		\State         search\_key $\leftarrow$ $C_0$.\codeF{minKey}$-1$ \Comment{ if $C_0$ is frozen, look for smaller key }
+%	\Until{$C_0$ is not frozen}
 	\State traverse linked list from $C_0$ until the last chunk $C$ s.t.\ $C$.\code{next} $=\bot$ or $C$.\code{next.minKey}  < key
 	\State return $C$
 \EndProcedure	 \label{l:locate-end}
@@ -225,10 +225,12 @@ concurrent scans, gets, and rebalances via the PPA; and (3) connect  the new cel
 
 %For simplicity we describe the algorithm as if both the key and value are embedded in the cell; in practice, to support variable length values the cell %can consist of pointer to where the value is stored.
 
-To locate the target chunk (lines~\ref{l:locate-start}-\ref{l:locate-end}), we first lookup the search key in the index. If the returned chunk is frozen, 
-it is possible that it is no longer connected to the linked list, and hence we re-search the index with a smaller key. Because the head of the linked list is never frozen, 
-and the number of keys is finite, this process eventually returns an unfrozen chunk. 
-Locate then traverses the linked list until the chunk the sought key belongs in.
+To locate the target chunk (lines~\ref{l:locate-start}-\ref{l:locate-end}), we first lookup the search key in the index
+%If the returned chunk is frozen, 
+%it is possible that it is no longer connected to the linked list, and hence we re-search the index with a smaller key. Because the head of the linked list is never frozen, 
+%and the number of keys is finite, this process eventually returns an unfrozen chunk. 
+%Locate 
+and then traverse the linked list until the chunk the sought key belongs in.
 
 The first phase of put (lines~\ref{l:put-prep}--\ref{l:put-prep-end})
 locates the target chunk $C$ and  allocates space for the key and the variable-length value 
