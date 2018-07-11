@@ -206,22 +206,26 @@ It is left to discuss Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. Co
 \begin{figure*}[tb]
   \centering
   \begin{subfigure}[t]{1.0\columnwidth}
-      \includegraphics[scale=0.5]{proof-put-base.pdf}
+   \centering
+      \includegraphics[scale=0.4]{proof-put-base.pdf}
       \caption[]{Base case: $\langle v_1, j_1\rangle$ is maximal in $t_1$}
     \label{fig:proof-put-base}  
   \end{subfigure}   \hskip .1\columnwidth
   \begin{subfigure}[t]{1.0\columnwidth}
-      \includegraphics[scale=0.5]{proof-put-ind1.pdf}
+  \centering
+      \includegraphics[scale=0.4]{proof-put-ind1.pdf}
       \caption[]{Induction step: case $\langle v_i, j_i\rangle$ is maximal in $t_j$ }
     \label{fig:proof-put-ind1}
   \end{subfigure}
   \begin{subfigure}[t]{1.0\columnwidth}
-      \includegraphics[scale=0.5]{proof-put-ind2.pdf}
+  \centering
+      \includegraphics[scale=0.4]{proof-put-ind2.pdf}
       \caption[]{Induction step: case $v_l > v_i$ and $t_l<t_i$}
     \label{fig:proof-put-ind2}
   \end{subfigure}
   \begin{subfigure}[t]{1.0\columnwidth}
-      \includegraphics[scale=0.5]{proof-put-ind3.pdf}
+  \centering
+      \includegraphics[scale=0.4]{proof-put-ind3.pdf}
       \caption[]{Induction step: case $v_l = v_i$, $j_l > j_i$ and $t_l<t_i$}
     \label{fig:proof-put-ind3}
   \end{subfigure}
@@ -246,7 +250,7 @@ For a get operation $go$ for a key $k$ in the range of chunk $C$, we consider th
 \item Else, if $go$ does not find $k$ in $C$ then \lp{go} is at time $t$.
 \item Else, let $po$ be the put operation that inserts the value returned by $go$. \lp{go} is the latest between time $t$ and immediately after \lp{po}.
 \end{enumerate}
-\eshcar{ADD FIGURES}
+
 
 The next lemma shows that in the third case no other put writing to $k$ is linearized after \lp{po} and before \lp{go}.
 The proof relies on 
@@ -294,6 +298,6 @@ Finally, by Condition~\ref{proof:put:lp2} of Lemma~\ref{proof:put} all put opera
 
 The definition of the linearization points of scans and get operations imply that these operations are linearized between their invocation and return.
 Condition~\ref{proof:put:lp1} of Lemma~\ref{proof:put} implies the same for puts. 
-It is easy to show \eshcar{show it!! before the lemmas} that gets and scans land in chunks that contain the saught keys in their ranges. Combined with the rebalancing invariants,
+It is easy to show that gets and scans land in chunks that contain the saught keys in their ranges. Combined with the rebalancing invariants,
 Lemma~\ref{proof:get} shows that get operations satisfy their sequential specification, and Lemma~\ref{proof:scan} proves that scans satisfy their sequential specification. 
 Hence we conclude that \kiwi\ implements a linearziable map. 
