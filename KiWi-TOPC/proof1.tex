@@ -105,7 +105,7 @@ Before a chunk ceases to be accessible, it must be frozen.
 \end{proof}
 
 From Invariant~\ref{invariant:rebalance}, we derive the correct execution of the locate function:
-\begin{corollary}
+\begin{corollary}\label{corollary:locate}
 The locate(key) function  (lines~\ref{l:locate-start}-\ref{l:locate-end}) always returns a chunk $C$ s.t. key is in $C$'s range.
 Moreover, if key is in the range of some chunk $C$ that is mutable throughout the execution of locate, then locate returns $C$.
 \end{corollary}
@@ -298,6 +298,6 @@ Finally, by Condition~\ref{proof:put:lp2} of Lemma~\ref{proof:put} all put opera
 
 The definition of the linearization points of scans and get operations imply that these operations are linearized between their invocation and return.
 Condition~\ref{proof:put:lp1} of Lemma~\ref{proof:put} implies the same for puts. 
-It is easy to show that gets and scans land in chunks that contain the saught keys in their ranges. Combined with the rebalancing invariants,
+Corollary~\ref{corollary:locate} shows that gets and scans land in chunks that contain the saught keys in their ranges. Combined with the rebalancing invariants,
 Lemma~\ref{proof:get} shows that get operations satisfy their sequential specification, and Lemma~\ref{proof:scan} proves that scans satisfy their sequential specification. 
 Hence we conclude that \kiwi\ implements a linearziable map. 
