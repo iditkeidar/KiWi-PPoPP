@@ -10,6 +10,7 @@ We show that gets and scans are \emph{wait-free}, namely, in any execution, ever
 To prove this, we show that although a put operation can execute an infinite number of rebalances, this can only occur because 
 some other operation (and in fact many operations) successfully complete a put.
 
+\remove{
 We begin by showing that the \codeF{locate} function is wait-free. 
 \begin{proposition}  
 The  \code{locate} function is wait-free.
@@ -21,12 +22,14 @@ executes a finite number of iterations because \code{index.lookup(key)} always r
 and so the searched keys are monotonically decreasing.  Since the number of keys is finite and the head of the list is never frozen, the loop
 returns an unfrozen chunk after a finite number of iterations. The ensuing traversal is also finite because the linked list is finite. 
 \end{proof}
+}
 
 \begin{lemma}
 The  \code{get} and \code{scan} functions are wait-free.
 \end{lemma}
 \begin{proof}
-By Proposition~\ref{prop:locate}, \code{locate} function is wait-free. 
+%By Proposition~\ref{prop:locate}, 
+Because the linked list is finte, \code{locate} function is wait-free. 
 To complete the proof, observe that the loops performed in \code{helpPendingPuts} and \code{findLatest}
  iterate (or search) over finites sets -- $C.k$ and $C.ppa$, and the scan loop (line~\ref{l:scan-loop}) traverses
  chunks in the (finite) linked list. 
@@ -37,10 +40,11 @@ The  \code{put} function is lock-free.
 \end{lemma}
 \begin{proof}
 We first show that as long as no \code{rebalance} occurs, \code{put} completes within a finite number of steps. 
-Beyond \code{rebalance} calls and recursive calls to \code{put} when it fails, \code{put} executes two loops --  one in
-the \code{locate} function and one in phase 3 (lines~\ref{l:put-ll}--\ref{l:put-ll-end}).  
-The former is wait-free by  Proposition~\ref{prop:locate}. 
-Next, consider the loop in phase 3 of the \code{put}. 
+Beyond \code{rebalance} calls and recursive calls to \code{put} when it fails, \code{put} executes 
+%two loops --  one in the \code{locate} function and one 
+only one loop, in phase 3 (lines~\ref{l:put-ll}--\ref{l:put-ll-end}).  
+%The former is wait-free by  Proposition~\ref{prop:locate}. 
+%Next, consider the loop in phase 3 of the \code{put}. 
 Observe that the \codeF{find} function is wait-free because it searches a finite array ($C$.k).
 Moreover, the CAS in line~\ref{l:put-insert1} fails at most a finite number of times (again, due to the finality of  $C$.k),
 and because we break when it succeeds, it is attempted a finite number of times. 
@@ -55,22 +59,35 @@ an additional time in an unbounded loop, or recursively calls \code{rebalance}, 
 Note in particular, that if a  \code{rebalance} operation succeeds to replace the engaged sequence (and returns true), then it 
 completes the \code{put} that invoked it, and so we do not need to consider this case.
 
-We first argue that the first four stages of the \code{rebalance} function also complete within a finite number of steps. 
+We first argue that with the exception of rebalance stage 5 (replace), all other  \code{rebalance} stages  always complete within a finite number of steps. 
 Because the chunks list is finite, the two loops in stage 1 (engage) are finite. 
 Similarly, the list of engaged chunks and the number of PPA entries in each of them are finite, and so is the nested loop in stage 2 (freeze). 
 In stage 3 (pick minimal version), the loop over the PSA is finite, and it constructs a finite toHelp set, and so the loop over toHelp is finite as well.
 Likewise, the loops in stage 4 iterate over finite sets, namely, engaged chunks and keys in the data structures therein.  
-Clearly, stage 7 is also wait-free. 
-Hence, it remains to consider stages 5 and 6.   
+In stage 6, the conditional insertion to the index fails only if another thread succeeds to insert a chunk with the same \code{minKey}. 
+Because the insertion is retried only as long as the chunk is not frozen, interfering insertions to the index must be due older rebalances that began before 
+the current rebalance, of which there is  a finite number.
+Clearly, stage 7, which performs a single CAS, is also wait-free. 
+Hence, it remains to consider stage 5.   
 
-The first loop in stage 5 terminates once the CAS -- either of this thread or of another thread -- succeeds to mark \code{last.next} as immutable. 
+The first loop in stage 5 terminates once the CAS -- either of the thread executing the loop or of another thread -- succeeds to mark \code{last.next} as immutable. 
 The CAS fails if either \code{last.next} changes or another thread marks it.  
 But  \code{last.next} only changes if some \code{rebalance} succceds to replace an engaged chunk succeeding it, and this  \code{rebalance} 
 returns true upon completion, thus completing a \code{put} when it returns. 
 
-%this means that another \code{rebalance} has succeeded. 
-
-% \Idit{If someone else marked the next pointer and failed, then it set it to the last.next, because }  
+The second loop returns whenever either the current thread or another thread successfully replaces the \code{next} pointer at C's predecessor to 
+a node whose parent is $C$ ($C_f$ in case it is the current thread). 
+They fail to do so only in case the predecessor's  \code{next} pointer is marked, which in turn only occurs if the predecessor itself is engaged in 
+another rebalance. In this case, the current thread makes a recursive call to  \code{rebalance} in order to help the predecessor (line~\ref{l:nested-rebalance}), 
+and then executes another iteration of the loop. 
+Note that since the linked list is finite, the depth of the recursion is finite, so eventually the inner-most nested recursive call succesfully returns. 
+Once a nested call in line~\ref{l:nested-rebalance} returns after having replaced \code{pred} with a new chunk \code{pred'}, 
+either some thread will succeed to CAS the new predecessor's next pointer causing 
+the calling thread to exit the loop in the next iteration, or  the new chunk \code{pred'}  will undergo rebalance.
+However, for the latter to occur, it must be the case that at least one new \code{put}  has completed in  \code{pred'} following its rebalance.
+This is because when rebalance completes, \code{pred'.k} is sorted and  \code{pred'.k} and \code{pred'.v} are at most half full, and 
+because they hold more entries than twice the number of threads,   it is impossible for either of them to fill up due to pending put operations. 
+Thus, \code{rebalance} can only be required after a successful   \code{put} in   \code{pred'}.
 
 \remove{
 

@@ -36,8 +36,8 @@ thread is attempting to add \code{k[6]} to the linked list with key $17$ and ver
 \begin{algorithmic}
 %	\State \code{status}	\Comment{infant, normal, or frozen}
 	\State immutable \codeF{minKey}  \Comment {minimal key in chunk}
-	\State array \codeF{k} of $\langle$key, ver, valPtr, next$\rangle$    \Comment {in-chunk linked list}
-	\State array \codeF{v} of values									\Comment {values stored in the list}
+	\State array \codeF{k} of $\langle$key, ver, valPtr, next$\rangle$      \Comment {in-chunk linked list, $k.size >  2\cdot$num\_threads}
+	\State array \codeF{v} of values								\Comment {values stored in the list, $v.size > 2\cdot$num\_threads}
 	\State \codeF{kCounter, vCounter} \Comment {end of allocated (full) prefixes} % in k and v
 	\State \codeF{batchedIndex} \Comment {end of batched prefix in k}
 %\LineComment{pending put array allowing scans and gets to help puts}
@@ -72,6 +72,7 @@ the index may be inaccurate. Therefore, the index-based search is supplemented b
 \paragraph{Intra-chunk organization.}
 Each chunk is organized as an array-based linked list, sorted in increasing key order.
 KiWi chunks hold two arrays -- \code{v} with written values, and \code{k} with the linked list.
+Both arrays hold more entries than twice the number of threads, to ensure that a  chunk does not fill up with only pending operations (in case all threads but one become idle).
 Each cell in \code{k} holds a key, a pointer \code{valPtr}
 to a value in \code{v}, and the index of the cell in \code{k} that holds the next key in the linked list.
 It also has a version number, as we explain shortly.
@@ -422,8 +423,11 @@ when it is rebalanced. Section~\ref{sec:rebalance-stages} then walks through the
 We saw that put calls \code{checkRebalance($C$)} in line~\ref{l:put-rebalance0}  before adding a new key to $C$.
 This procedure triggers \code{rebalance($C$)} whenever $C$ is full or otherwise unbalanced, according
 to some specified \emph{rebalance policy}; we refer to $C$ as the \emph{trigger chunk} of the rebalance.
+To ensure liveness, it is essential to trigger rebalance only after at least one \code{put} -- and hopefully many \code{puts} -- succeed in the chunk.
+We therefore assume that chunks are created ``in good standing'', i.e., sorted and no more than half full and the policy isn't overly aggressive
+in triggering rebalance. 
 
-To address the immediate problem, \kiwi\ could, in principle, restrict itself to the trigger chunk:
+To address the immediate problem for which rebalance is triggered, \kiwi\ could, in principle, restrict itself to the trigger chunk:
 It can free up space by \emph{compacting} $C$, i.e., removing deleted values, values that are no longer in the linked list
 because their keys have been over-written, as well as values that pertain to old versions that are not required by any active scan;
 if this does not suffice (because all the information in $C$ is needed), \kiwi\ may \emph{split} the chunk.
@@ -716,7 +720,7 @@ either way, it uses the version written by some successful CAS (line~\ref{l:scan
 			\State normalize($C$)
 			\State return false 
 		\EndIf 
-		\State rebalance(pred, $\bot, \bot$) \Comment{insertion failed, help predecessor}
+		\State rebalance(pred, $\bot, \bot$)  \label{l:nested-rebalance} \Comment{insertion failed, help predecessor}
 	\doWhile{true} \Comment{ and retry}
 	\EndProcedure	
 	\algstore{kiwi}
