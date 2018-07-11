@@ -202,11 +202,11 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 	\EndProcedure
 	\Statex
 \Procedure{locate}{key} \label{l:locate-start}
-%	\State search\_key $\leftarrow$ key
-%	\Repeat	\Comment{Find unfrozen chunk to begin traversal} 
-		\State 	$C_0 \leftarrow$ index.lookup(key) \Comment{  $C_0$.\codeF{minKey} $\le$  key } 
-%		\State         search\_key $\leftarrow$ $C_0$.\codeF{minKey}$-1$ \Comment{ if $C_0$ is frozen, look for smaller key }
-%	\Until{$C_0$ is not frozen}
+	\State search\_key $\leftarrow$ key
+	\Repeat	\Comment{Find unfrozen chunk to begin traversal} 
+		\State 	$C_0 \leftarrow$ index.lookup(search\_key) \Comment{  $C_0$.\codeF{minKey} $\le$  search\_key } 
+		\State         search\_key $\leftarrow$ $C_0$.\codeF{minKey}$-1$ \Comment{ if $C_0$ is frozen, look for smaller key }
+	\Until{$C_0$ is not frozen}
 	\State traverse linked list from $C_0$ until the last chunk $C$ s.t.\ $C$.\code{next} $=\bot$ or $C$.\code{next.minKey}  < key
 	\State return $C$
 \EndProcedure	 \label{l:locate-end}
@@ -221,21 +221,20 @@ We see that if \code{get(k2)} does not help \code{put(k2,b)}, the gets see puts 
 
 The put operation appears in Algorithm~\ref{alg:put-ops}. It
 consists of three phases: (1) locate the target chunk and
-prepare a cell to insert with the written value; (2) obtain a version while syncrhonizing with
+prepare a cell to insert with the written value; (2) obtain a version while synchronizing with
 concurrent scans, gets, and rebalances via the PPA; and (3) connect  the new cell to the linked list.
 
 %For simplicity we describe the algorithm as if both the key and value are embedded in the cell; in practice, to support variable length values the cell %can consist of pointer to where the value is stored.
 
-To locate the target chunk (lines~\ref{l:locate-start}-\ref{l:locate-end}), we first lookup the search key in the index
-%If the returned chunk is frozen, 
-%it is possible that it is no longer connected to the linked list, and hence we re-search the index with a smaller key. Because the head of the linked list is never frozen, 
-%and the number of keys is finite, this process eventually returns an unfrozen chunk. 
-%Locate 
-and then traverse the linked list until the chunk the sought key belongs in.
+To locate the target chunk (lines~\ref{l:locate-start}-\ref{l:locate-end}), we first lookup the search key in the index.
+If the returned chunk is frozen, 
+it is possible that it is no longer connected to the linked list, and hence we re-search the index with a smaller key. Because the head of the linked list is never frozen, 
+and the number of keys is finite, this process eventually returns an unfrozen chunk. 
+Locate then traverses the linked list until the chunk the sought key belongs in.
 
 The first phase of put (lines~\ref{l:put-prep}--\ref{l:put-prep-end})
 locates the target chunk $C$ and  allocates space for the key and the variable-length value 
-by increasing $C$'s array  counters to the next available indices \code{i} and \code{j} for \code{k} and \code{v}, resp.
+by increasing $C$'s array  counters to the next available indexes \code{i} and \code{j} for \code{k} and \code{v}, resp.
 This is done using atomic F\&I and F\&A, so in case of concurrent put operations, each thread gets its own cells.
 
 Before increasing \code{i} and \code{j}, put checks if rebalancing is needed, because the chunk is full, imbalanced, or immutable, 
@@ -261,7 +260,7 @@ put uses the version from the PPA, and copies it to \code{k[i]} (line \ref{l:put
 The third phase, (lines~\ref{l:put-ll}--\ref{l:put-ll-end}), adds \code{k[i]} to the linked list.
 To find the insertion point, it first uses binary search on the batched prefix and then traverses the remaining linked list.
 If the linked list does not contain a cell with the same key and version, then \code{k[i]} is linked to the list (line \ref{l:put-insert1}).
-Otherwise, ties between two puts with the same key and version are broken based on the indices of their allocated cells in \code{v}.
+Otherwise, ties between two puts with the same key and version are broken based on the indexes of their allocated cells in \code{v}.
 If the put that allocates cell \code{j} finds in the linked list a cell with index \code{j'} with the same key and version such that \code{j'}$<$\code{j},
 it uses CAS to replace that cell's \code{valPtr} to point to \code{v[j]} (line \ref{l:put-insert2}).
 If \code{j'}$>$\code{j} then the put does nothing, since its value has effectively been overwritten.
@@ -391,7 +390,7 @@ Within each chunk, it proceeds as get does to help all pending puts and find the
 
 \end{tabular}
 \end{center}
-\caption{Atomic operations and rendevouz points determining order between \kiwi\ procedures.}
+\caption{Atomic operations and rendezvous points determining order between \kiwi\ procedures.}
 \label{tab:sync}
 \end {table}
 
@@ -490,7 +489,7 @@ The rebalance procedure consists of two functions, \codeF{rebalance} and \codeF{
 the chunk's parent is helped only the latter is performed as explained below.
 In addition, rebalance on $C$ may be triggered in case the chunk is full or if the rebalance policy chooses to do so.
 Note that put calls \code{checkRebalance} before incrementing \code{kCounter} and \code{vCounter} in order to avoid filling up infant chunks.
-The \code{rebalance} procedure takes the put's key and value as parameters, and attempts to piggyback the put on the reblanace, i.e., insert the key and value to the newly created chunk. In case it fails, it returns false, in which case the put is restarted. 
+The \code{rebalance} procedure takes the put's key and value as parameters, and attempts to piggyback the put on the rebalance, i.e., insert the key and value to the newly created chunk. In case it fails, it returns false, in which case the put is restarted. 
 
 The  policy will typically choose to rebalance $C$ whenever $C$ is full or under-utilized, as well as when
 its  batched prefix becomes too small relative to the number of keys in $C$'s linked list.
@@ -519,7 +518,7 @@ Rebalance  proceeds in the following seven stages:
 %, after helping pending scans obtain versions.
 \item \emph{Build} -- create infant chunks to replace engaged ones.
 \item \emph{Replace} -- swap new chunks for old ones in  list.
-\item \emph{Update index} -- unindex old chunks,  index new ones.
+\item \emph{Update index} -- un-index old chunks,  index new ones.
 \item \emph{Normalize} -- make the new chunks \emph{mutable}.
 \end{enumerate}
 
@@ -791,7 +790,7 @@ In the special case when the new list is empty (because no data is kept), line~\
 \end{algorithm}	
 
 \paragraph{6. Index update.}
-The normalize procedure needs to know last, $C_n$, and $C_f$ in order to delete old chunks from the index and insert new ones. These may be stored in \code{ro} by reblance for this purpose, or may be discovered by traversals. 
+The normalize procedure needs to know last, $C_n$, and $C_f$ in order to delete old chunks from the index and insert new ones. These may be stored in \code{ro} by rebalance for this purpose, or may be discovered by traversals. 
 
 %The next phase adds the new chunks to the index and removes  the replaced ones.
 Since the new chunks are already accessible via the linked list and the old chunks are already frozen, the index update can be lazy, and updates of different chunks can proceed without synchronization.
@@ -807,7 +806,7 @@ we instead use locks.
 
 To index a new chunk $C$, we first call \code{loadPrev($C$.minKey)}, then verify that $C$ is not frozen, and if so,
 add it conditionally to the index. 
-Since chunks are frozen before they are unindexed, this check ensures that we do not re-index an unindexed chunk.
+Since chunks are frozen before they are un-indexed, this check ensures that we do not re-index an unindexed chunk.
 If the conditional put fails and yet the chunk is not frozen, the put is retried.
 Index removals call \code{deleteConditional(C.minKey,C)}.
 

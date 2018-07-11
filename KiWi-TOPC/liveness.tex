@@ -10,7 +10,6 @@ We show that gets and scans are \emph{wait-free}, namely, in any execution, ever
 To prove this, we show that although a put operation can execute an infinite number of rebalances, this can only occur because 
 some other operation (and in fact many operations) successfully complete a put.
 
-\remove{
 We begin by showing that the \codeF{locate} function is wait-free. 
 \begin{proposition}  
 The  \code{locate} function is wait-free.
@@ -22,14 +21,12 @@ executes a finite number of iterations because \code{index.lookup(key)} always r
 and so the searched keys are monotonically decreasing.  Since the number of keys is finite and the head of the list is never frozen, the loop
 returns an unfrozen chunk after a finite number of iterations. The ensuing traversal is also finite because the linked list is finite. 
 \end{proof}
-}
 
 \begin{lemma}
 The  \code{get} and \code{scan} functions are wait-free.
 \end{lemma}
 \begin{proof}
-%By Proposition~\ref{prop:locate}, 
-Because the linked list is finte, \code{locate} function is wait-free. 
+By Proposition~\ref{prop:locate}, the \code{locate} function is wait-free. 
 To complete the proof, observe that the loops performed in \code{helpPendingPuts} and \code{findLatest}
  iterate (or search) over finites sets -- $C.k$ and $C.ppa$, and the scan loop (line~\ref{l:scan-loop}) traverses
  chunks in the (finite) linked list. 
@@ -41,10 +38,11 @@ The  \code{put} function is lock-free.
 \begin{proof}
 We first show that as long as no \code{rebalance} occurs, \code{put} completes within a finite number of steps. 
 Beyond \code{rebalance} calls and recursive calls to \code{put} when it fails, \code{put} executes 
-%two loops --  one in the \code{locate} function and one 
-only one loop, in phase 3 (lines~\ref{l:put-ll}--\ref{l:put-ll-end}).  
-%The former is wait-free by  Proposition~\ref{prop:locate}. 
-%Next, consider the loop in phase 3 of the \code{put}. 
+two loops --  one in the \code{locate} function and one 
+%only one loop, 
+in phase 3 (lines~\ref{l:put-ll}--\ref{l:put-ll-end}).  
+The former is wait-free by  Proposition~\ref{prop:locate}. 
+Next, consider the loop in phase 3 of the \code{put}. 
 Observe that the \codeF{find} function is wait-free because it searches a finite array ($C$.k).
 Moreover, the CAS in line~\ref{l:put-insert1} fails at most a finite number of times (again, due to the finality of  $C$.k),
 and because we break when it succeeds, it is attempted a finite number of times. 
