@@ -20,7 +20,7 @@ Section~\ref{sec:rebalance} focuses on rebalancing.
 Similarly to a B$^{+}$tree, the KiWi data structure is organized as a collection of large blocks of contiguous key ranges, called \emph{chunks}. Organizing data in such chunks allows memory allocation/deallocation to occur infrequently. It also makes the design cache-friendly and appropriate for NUMA, where once a chunk is loaded to local memory, access time to additional addresses within the chunk is much shorter. This is particularly important for  scans, which KiWi seeks to optimize, since they access contiguous key ranges, often residing in the same chunk.
 
 The KiWi data layout is depicted in Figure~\ref{fig:overview-new}, with one chunk zoomed in.
-The chunk data stucture is described in Algorithm~\ref{alg:chunk}.
+The chunk data structure is described in Algorithm~\ref{alg:chunk}.
 
 \begin{figure*}[t]
   \centering

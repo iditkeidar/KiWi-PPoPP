@@ -90,7 +90,7 @@ Brown and Avni \cite{BrownA12} introduced range queries for the k-ary search tre
 Their scans are atomic and lock-free, and outperform those  of Ctrie and \snaptree\ in most scenarios.
 However, each conflicting put restarts the scan,
 degrading performance as scan sizes increase. Additionally,
-\kary is unabalnced; its performance plunges when keys are inserted in sequential order
+\kary is unbalanced; its performance plunges when keys are inserted in sequential order
 (a common practical case).
 
 Some techniques offer generic add-ons to support atomic \emph{snapshot iterator} in existing data structures~\cite{Petrank2013, wttm2016}.
@@ -103,8 +103,8 @@ concurrent skip-list~\cite{Fraser04}.
 %written by Doug Lea based on \cite{Fraser04} and released as part of the JavaTM SE 6 platform.
 
 \paragraph{Distributed KV-maps}
-Production systems often exploit persistent KV-stores like Google's Bigtable~\cite{Chang2008}, Apache HBase~\cite{ApacheHBase}, 
-and others~\cite{leveldb, RocksDB}. These technologies combine on-disk indices for persistence with an in-memory KV-map 
+Production systems often exploit persistent KV-stores like Apache HBase~\cite{ApacheHBase},  Google's Bigtable~\cite{Chang2008}, 
+and others~\cite{leveldb, RocksDB}. These technologies combine on-disk indexes for persistence with an in-memory KV-map 
 for real-time data acquisition. They often support atomic scans, which can be non-blocking as long as they can be served from 
 RAM~\cite{GolanGueta2015}. However, storage access is a principal consideration in such systems, which makes their design 
 different from that of in-memory stores as discussed herein.

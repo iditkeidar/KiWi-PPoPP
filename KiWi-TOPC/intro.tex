@@ -81,7 +81,7 @@ The index is updated lazily once rebalancing of the data layer completes.
 Finally, \kiwi\ is a balanced data strucutre, providing logarithmic access latency in the absence of contention.
 This is achieved via a combination of (1) using a balanced index for fast chunk lookup and (2) partially sorting keys in each
 chunk to allow for fast in-chunk binary search. The \kiwi\ algorithm is detailed in Section~\ref{sec:alg}
-and we discuss its correctness in Section~\ref{sec:proof}.
+and we prove its correctness in Section~\ref{sec:proof}.
 % \todo{Consider saying we're the only data structure snapshot algorithm that has a formal proof, which is in the appendix.}
 
 
