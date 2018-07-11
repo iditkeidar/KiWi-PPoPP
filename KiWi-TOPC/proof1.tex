@@ -3,13 +3,13 @@
 \section{Correctness}
 \label{sec:proof}
 
-In order to lay out foundations  for reasoning about correctness,  we  define in Section~\ref{sec:spec} the model and correctness notion we seek to prove. 
+In order to lay out foundations  for reasoning about correctness,  we  define in Section~\ref{sec:spec} the model and correctness notions we seek to prove. 
 We proceed to prove the algorithm's safety in Section~\ref{sec:safe} and liveness in Section~\ref{sec:live}.
 
 \subsection{Model and Correctness Specification}
 \label{sec:spec}
 
-We consider an asynchronous shared memory model~\cite{Welch2004} consisting of a collection of shared variables accessed by a finite number of threads , which also have local state.
+We consider an asynchronous shared memory model~\cite{Welch2004} consisting of a collection of shared variables accessed by a finite number of threads, which also have local state.
 High-level objects, such as a map, are implemented using low-level memory objects supporting atomic read, write, and read-modify-write (e.g., CAS) primitives. 
 Threads  \emph{invoke} high-level \emph{operations}, which perform a sequence of  \emph{steps} on low-level objects, and finally \emph{return}.
 
@@ -96,7 +96,7 @@ Moreover, once a chunk is engaged (stage (1)), it is associated with a unique re
 whose next pointer is set to $\bot$, 
 and hence the segment of chunks associated with \code{ro} cannot change. 
 Using a CAS to set $C$'s predecessor's \code{next} pointer to $C_f$ ensures 
-that the old immutable chunk is replaced by at most one new accessible mutable chunk.
+that the old immutable chunk sequence is replaced by at most one new accessible mutable chunk sequence.
 \item
 Chunks are indexed according to their \code{minKey}, and 
 the rebalance protocol does not index new chunks (stage (6)) before making them accessible (stage (5)). 
@@ -120,15 +120,15 @@ then $\langle$key, val$ \rangle$ is \emph{stored in} \kiwi\ at all times $t' > t
 \label{proposition:no-loss}
 \end{proposition}
 \begin{proof}
-By Invariant~\ref{invariant:rebalance}(1), key is in the range of exactly one accessible chunk $C$ at time $t$,  which  get(key) locates, 
-and the returned val is the one associated with key with the highest version (with ties broken by valPtr). 
+By Invariant~\ref{invariant:rebalance}(1), key is in the range of exactly one accessible chunk $C$ at time $t$,  which  \code{get(key)} locates, 
+and the returned val is the one associated with key with the highest version (with ties broken by \code{valPtr}). 
 Observe that as long as $C$ remains accessible at time $t'$, its range does not change because \code{minKey} is invariant, and if $C$'s successor is 
-replaced by rebalance, it is replaced with a chunk with the same \code{minKey}. 
+replaced by \code{rebalance}, it is replaced with a chunk with the same \code{minKey}. 
 Since no   subsequent put(key,$\_$)  operations are invoked in $\sigma$, val remains the highest-version value associated with key in $C$, and we are done.
 
-It remains to show that a rebalance that removes $C$ does not remove $\langle$key, val$ \rangle$ from \kiwi, from which the proposition follows   inductively.
+It remains to show that a \code{rebalance} that removes $C$ does not remove $\langle$key, val$ \rangle$ from \kiwi, from which the proposition follows   inductively.
 %Consider therefore a rebalance that engages $C$.  %Once $C$.\code{ro} is set, it does not change.
-It follows from the facts that (1) the highest-versioned value associated with each key in an old chunk $C$ is cloned into a new chunk; and 
+This follows from the facts that (1) the highest-versioned value associated with each key in an old chunk $C$ is cloned into a new chunk; and 
 (2) the entire chunk segment is replaced atomically by marking the next pointer of the last engaged chunk to prevent it from changing, and then 
 CASing the predecessor of the first engaged chunk.
  \end{proof}
@@ -148,7 +148,7 @@ the step executing the successful CAS  as the put's \emph{publish time} and the 
 and say that the put \emph{assigns} full version $\langle v, j \rangle$ for its key in $C$.
 
 We note that each put assigns a full version at most once. 
-Furthermore, as noted above, a full version can only be assigned in a mutable chunk.
+Furthermore, as noted above, a full version can only be in a mutable chunk.
 Once a put operation $po$ for key $k$ assigns its full version in chunk $C$ at time $t$, we can define its linearization point. 
 There are two options: 
 \begin{enumerate}
@@ -164,7 +164,6 @@ In case multiple puts are assigned linearization points the same time, they are 
 
 
 
-%% HERE %%
 
 % It is easy to show that a put operation always lands at a mutable chunk with a range that covers the key.
 By Invariant~\ref{invariant:rebalance},
@@ -188,20 +187,7 @@ operation $po=$\code{put($k, \_$)} that assigns $\langle v, j\rangle$ to $C$.\co
 %For every key k and time t when k is in the range of a chunk C that is accessible (either from the index or from the chunks list), the value published to k by the put with the latest LP before t is associated with the highest location-based version in C's linked list and PPA.
 \begin{proof}
 We consider an execution interval $\pi$ which spans the execution intervals of all operations that publish $k$ to $C$ .
-Denote by $t_1, t_2, \ldots $ the finite sequence of times these operations assigned versions $v_1, v_2, \ldots$ into entries in the \code{ppa} by their order in $\pi$, where $t_i$ is the assignment time of operation $op_i$; the locations each operation allocated for its value are $j_1, j_2, \ldots$, respectively (see Figure~\ref{fig:proof-put}).
-
-The proof is by induction on $i$. For the base case, we consider $op_1$. It is the first to publish its version in the \code{ppa}  (see Figure~\ref{fig:proof-put-base}). 
-All entries of key $k$ from previous epochs are written in $C$ during the rebalance operation that created $C$; their version is smaller or equal to $v_1$, and their location is smaller than $j_1$. 
-Therefore, the full version of these entries is smaller than $\langle v_1, j_1\rangle$  and $op_1$ is linearized in the last read step of the global version counter that returns $v_1$ before $t_1$. Clearly this is after $op_1$ is published (line~\ref{l:put-prep-end}), and specifically after $j_1$ is allocated (line~\ref{l:put-cas-j}), and the lemma holds.
-
-For the induction step, assume the lemma holds for operations $op_1, \ldots op_{i-1}$. We prove the lemma for operation $op_i$ by case analysis.
-If $op_i$'s full version $\langle v_i, j_i\rangle$ is maximal in $C$ (with respect to all linked cells and published entries with the same key) then \lp{op_i} is the last read retrieving $v_i$ from the global counter  (see Figure~\ref{fig:proof-put-ind1}). This step is done after the put is published in the \code{ppa} (which is after $j_i$ is allocated) and before $t_i$, and Conditions~\ref{proof:put:lp1}-\ref{proof:put:lp3} of the lemma hold. In addition, by the induction hypothesis, linearization points of $op_1, \ldots op_{i-1}$ preserve their full version order. They are all linearized in read steps after the global version counter is set to their versions, specifically not later than \lp{op_i}---the latest read step returning the maximal version, hence Condition~\ref{proof:put:lp4} holds as well.
-
-Otherwise, another operation $op_l$ published $\langle v_l, j_l\rangle$ in $t_l$ before $t_i$, s.t. $\langle v_l, j_l\rangle > \langle v_i, j_i\rangle$. By definition, $op_i$ is linearized exactly at the point (\lp{op_l}) which preserves the full version order of the operations, and Condition~\ref{proof:put:lp4} holds. By Condition~\ref{proof:put:lp3} of the induction hypothesis, \lp{op_l} is after an operation publishes $k$ to $C$ (and later assigns a full version equal or greater than $\langle v_l, j_l\rangle$). Since $\langle v_l, j_l\rangle > \langle v_i, j_i\rangle$, Condition~\ref{proof:put:lp3} also holds. 
-
-It is left to discuss Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. Consider first the case where $v_l>v_i$  (see Figure~\ref{fig:proof-put-ind2}). By Condition~\ref{proof:put:lp2} of the induction hypothesis \lp{op_l} is in a read step of the global version counter that occurred after it is set to $v_l$. $op_i$ eventually publishes the version $v_i$ which is smaller than $v_l$. This implies $op_i$ published the operation in the \code{ppa} before the version counter is set to $v_l$, and  \lp{op_i} satisfies Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. If $v_l =v_i$ and $j_l>j_i$  (see Figure~\ref{fig:proof-put-ind3}) then $op_l$ allocated $j_l$ after $op_i$ allocated $j_i$. By Condition~\ref{proof:put:lp1} of the induction hypothesis, \lp{op_l} is after $op_l$ allocated $j_l$  and before $t_l$, and  \lp{op_i} satisfies Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. 
-
-\end{proof}
+Denote by $t_1, t_2, \ldots $ the finite sequence of times these operations assign versions $v_1, v_2, \ldots$ into entries in the \code{ppa} by their order in $\pi$, where $t_i$ is the assignment time of operation $op_i$; denote the locations these operations allocate for their values as $j_1, j_2, \ldots$, respectively (see Figure~\ref{fig:proof-put}).
 
 \begin{figure*}[tb]
   \centering
@@ -230,9 +216,26 @@ It is left to discuss Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. Co
     \label{fig:proof-put-ind3}
   \end{subfigure}
 
-\caption{Linearization points of put operations publishing key $k$ in chunk $C$. $t_1, t_2, \ldots $ is the sequence of times these operations assigned versions into $C$'s \code{ppa}} 
+\caption{Linearization points of put operations publishing key $k$ in chunk $C$. $t_1, t_2, \ldots $ is the sequence of times these operations assign versions into $C$'s \code{ppa}.} 
 \label{fig:proof-put}
 \end{figure*}
+
+
+
+The proof is by induction on $i$. For the base case, we consider $op_1$. It is the first to publish its version in the \code{ppa}  (see Figure~\ref{fig:proof-put-base}). 
+All entries of key $k$ from previous epochs were written in $C$ during the rebalance operation that created $C$; their versions are smaller or equal to $v_1$ and their locations are smaller than $j_1$. 
+Therefore, the full versions of these entries are smaller than $\langle v_1, j_1\rangle$  and $op_1$ is linearized in the last read step of the global version counter that returns $v_1$ before $t_1$. Clearly this is after $op_1$ is published (line~\ref{l:put-prep-end}), and specifically after $j_1$ is allocated (line~\ref{l:put-cas-j}), and the lemma holds.
+
+For the induction step, assume the lemma holds for operations $op_1, \ldots op_{i-1}$. We prove the lemma for operation $op_i$ by case analysis.
+If $op_i$'s full version $\langle v_i, j_i\rangle$ is maximal in $C$ (with respect to all linked cells and published entries with the same key) then \lp{op_i} is the last read retrieving $v_i$ from the global counter  (see Figure~\ref{fig:proof-put-ind1}). This step is done after the put is published in the \code{ppa} (which is after $j_i$ is allocated) and before $t_i$, and Conditions~\ref{proof:put:lp1}-\ref{proof:put:lp3} of the lemma hold. In addition, by the induction hypothesis, linearization points of $op_1, \ldots op_{i-1}$ preserve their full version order. They are all linearized in read steps after the global version counter is set to their versions, specifically not later than \lp{op_i}---the latest read step returning the maximal version, hence Condition~\ref{proof:put:lp4} holds as well.
+
+Otherwise, another operation $op_l$ published $\langle v_l, j_l\rangle$ in $t_l$ before $t_i$, s.t. $\langle v_l, j_l\rangle > \langle v_i, j_i\rangle$. By definition, $op_i$ is linearized exactly at the point (\lp{op_l}) which preserves the full version order of the operations, and Condition~\ref{proof:put:lp4} holds. By Condition~\ref{proof:put:lp3} of the induction hypothesis, \lp{op_l} is after an operation publishes $k$ to $C$ (and later assigns a full version equal or greater than $\langle v_l, j_l\rangle$). Since $\langle v_l, j_l\rangle > \langle v_i, j_i\rangle$, Condition~\ref{proof:put:lp3} also holds. 
+
+It is left to discuss Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. Consider first the case where $v_l>v_i$  (see Figure~\ref{fig:proof-put-ind2}). By Condition~\ref{proof:put:lp2} of the induction hypothesis, \lp{op_l} is in a read step of the global version counter that occurs after it is set to $v_l$. Eventually, $op_i$  assigns version $v_i$, which is smaller than $v_l$. This implies that $op_i$ publishes the operation in the \code{ppa} before the version counter is set to $v_l$, and  \lp{op_i} satisfies Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. If $v_l =v_i$ and $j_l>j_i$  (see Figure~\ref{fig:proof-put-ind3}) then $op_l$ allocates $j_l$ after $op_i$ allocates $j_i$. By Condition~\ref{proof:put:lp1} of the induction hypothesis, \lp{op_l} is after $op_l$ allocates $j_l$  and before $t_l$, and  \lp{op_i} satisfies Conditions~\ref{proof:put:lp1} and~\ref{proof:put:lp2}. 
+
+\end{proof}
+
+
 
 
 \subsubsection{Gets and scans.}
@@ -253,8 +256,7 @@ For a get operation $go$ for a key $k$ in the range of chunk $C$, we consider th
 
 
 The next lemma shows that in the third case no other put writing to $k$ is linearized after \lp{po} and before \lp{go}.
-The proof relies on 
-Lemma~\ref{proof:put} and the rebalance invariants.
+%The proof relies on  Lemma~\ref{proof:put} and the rebalance invariant.
 
 \begin{lemma}
 \label{proof:get}
@@ -269,20 +271,20 @@ Consider a get operation $go$ retrieving the value of key $k$ from chunk $C$. Le
 \begin{proof}
 %It can be inferred from \code{findLatest} that $op$ returns the value with the maximal location-based version observed by $op$ in the \code{ppa} and in the cell linked list. In addition, it can be inferred from the code that put operations update values in-place in the cell linked list only if its full version is higher than the full version of the cell in the list.
 
-First, assume $go$ did not find the key in $C$. It can be inferred from \code{findLatest}, all operations publishing $k$ in $C$ are published in the \code{ppa} after $t$. Otherwise, $go$ should have observed one of them either in the \code{ppa} or in the linked list. By Condition~\ref{proof:put:lp3} of Lemma~\ref{proof:put}, all operations publishing $k$ in $C$ are linearized after $t$, and Condition~\ref{proof:get:lp1} holds.
+First, assume $go$ does not find the key in $C$. It can be inferred from \code{findLatest} that all operations publishing $k$ in $C$ are published in the \code{ppa} after $t$. Otherwise, $go$ should have observed one of them either in the \code{ppa} or in the linked list. By Condition~\ref{proof:put:lp3} of Lemma~\ref{proof:put}, all operations publishing $k$ in $C$ are linearized after $t$, and Condition~\ref{proof:get:lp1} holds.
 
 Next, assume $go$ returns the value written by operation $po_l$, where the full version of $po_l$ is $\langle v_l, j_l\rangle$. 
 
-If $C$ is not accessible from the chunks list at time $t$, then \lp{go} is in the last step in which $C$ is accessible from the chunks list. By the rebalance invariant no put operation can publish in $C$ after $t$, and by Condition~\ref{proof:put:lp1} of Lemma~\ref{proof:put}  \lp{go} is after \lp{po_l}. Otherwise, by definition that \lp{go} is (immediately) after  \lp{po_l}.
+If $C$ is not accessible from the chunks list at time $t$, then \lp{go} is in the last step in which $C$ is accessible from the chunks list. Since  chunks cease to be mutable before they cease to be accessible, no put operation can publish in $C$ after $t$, and by Condition~\ref{proof:put:lp1} of Lemma~\ref{proof:put}  \lp{go} is after \lp{po_l}. Otherwise, by definition  \lp{go} is (immediately) after  \lp{po_l}.
 
 Consider an operation $po_m \neq po_l$ publishing $k$ to $C$ with full version $\langle v_m, j_m\rangle$.
 By Condition~\ref{proof:put:lp4} of Lemma~\ref{proof:put}, if $\langle v_m, j_m\rangle < \langle v_l, j_l\rangle$ then \lp{po_m} is before \lp{po_l}. It is left to show that if $\langle v_m, j_m\rangle > \langle v_l, j_l\rangle$ then \lp{po_m} is after $t$.
-It can be inferred from \code{findLatest}, all operations publishing $k$ in $C$ with full version $\langle v_m, j_m\rangle > \langle v_l, j_l\rangle$ are published in the \code{ppa} after $t$. Otherwise, $go$ should have observed one of them either in the \code{ppa} or in the linked list.
+It can be inferred from \code{findLatest} that all operations publishing $k$ in $C$ with full version $\langle v_m, j_m\rangle > \langle v_l, j_l\rangle$ are published in the \code{ppa} after $t$. Otherwise, $go$ should have observed one of them either in the \code{ppa} or in the linked list.
 Condition~\ref{proof:put:lp3} of Lemma~\ref{proof:put} implies that these operations are linearized after at least one of them is published in the \code{ppa}, hence Condition~\ref{proof:get:lp2} also holds.
 \end{proof}
 
 Scans are linearized when \code{GV} is increased beyond their read point, typically by their own F\&I, and sometimes by a helping rebalance. 
-Lemma~\ref{proof:put} helps to prove the following:
+Lemma~\ref{proof:put} is used to prove the following:
 \begin{lemma}
 \label{proof:scan}
 Consider a scan operation $so$ that acquires version $v$ as its read point. For each key $k$ in the range of the scan, $so$ returns the value of the put operation writing to $k$ that is linearized last before \lp{so}.
@@ -290,14 +292,15 @@ Consider a scan operation $so$ that acquires version $v$ as its read point. For 
 \begin{proof}
 %It can be inferred from \code{findLatest} that for each key $k$ in the range of the scan, $op$ returns the maximal location-based version of $k$ that does not exceed the scan read point observed by $op$ in the \code{ppa} and in the cell linked list. In addition, it can be inferred from the code that put operations update values in-place in the cell linked list only if its location-based version is higher than the location-based version of the cell in the list.
 
-Consider a put operation $po$ that writes to a key in the range of the scan but is not observed by $op$. If $po$ acquires version that is less than $v$ then it acquired a version before the scan increased the global version counter. Since $so$ did not observe $po$ in the \code{ppa}, $po$ completed before $so$ read the entry in the \code{ppa}. $so$ did not observe $po$ in the linked list. It can be inferred from the code that another put operation $po'$ with a higher version than $po$'s full version updated the $k$'s value in-place in the linked list.
+Consider a put operation $po$ that writes to a key in the range of the scan but is not observed by $op$. First, assume 
+$po$ acquires version that is less than $v$. Then it acquires a version before the scan increases the global version counter. Since $so$ does not observe $po$ in the \code{ppa}, $po$ completes before $so$ reads the entry in the \code{ppa}. Moreover, $so$ does not observe $po$ in the linked list. It can be inferred from the code that another put operation $po'$ with a higher version than $po$'s full version updates the same entry in $k$ in-place.
 By Condition~\ref{proof:put:lp4} of Lemma~\ref{proof:put}, $po$ is linearized before $po'$ writing the value returned by the scan.
 
-Finally, by Condition~\ref{proof:put:lp2} of Lemma~\ref{proof:put} all put operations that are not observed by $so$ and acquire version that is greater than $v$ are linearized after \lp{so}.
+Finally, by Condition~\ref{proof:put:lp2} of Lemma~\ref{proof:put} all put operations that are not observed by $so$ and acquire versions greater than $v$ are linearized after \lp{so}.
 \end{proof}
 
 The definition of the linearization points of scans and get operations imply that these operations are linearized between their invocation and return.
 Condition~\ref{proof:put:lp1} of Lemma~\ref{proof:put} implies the same for puts. 
-Corollary~\ref{corollary:locate} shows that gets and scans land in chunks that contain the saught keys in their ranges. Combined with the rebalancing invariants,
+Corollary~\ref{corollary:locate} shows that gets and scans land in chunks that contain the sought keys in their ranges. Combined with the rebalancing invariants,
 Lemma~\ref{proof:get} shows that get operations satisfy their sequential specification, and Lemma~\ref{proof:scan} proves that scans satisfy their sequential specification. 
 Hence we conclude that \kiwi\ implements a linearziable map. 
