@@ -1,0 +1,171 @@
+
+
+\subsection{Liveness}
+\label{sec:live}
+
+We now prove \kiwi's liveness properties. 
+We show that gets and scans are \emph{wait-free}, namely, in any execution, every operation completes within a finite number of steps by its invoking thread. 
+ This is proven  by showing that the number of iterations in the loops in these procedures is finite. 
+ Put operations satisfy a weaker liveness property --  \emph{lock-freedom}, namely, in every execution, \emph{some} put operation completes.
+To prove this, we show that although a put operation can execute an infinite number of rebalances, this can only occur because 
+some other operation (and in fact many operations) successfully complete a put.
+
+We begin by showing that the \codeF{locate} function is wait-free. 
+\begin{proposition}  
+The  \code{locate} function is wait-free.
+\label{prop:locate}
+\end{proposition}
+\begin{proof}
+The function consists of two loops. The first loop 
+executes a finite number of iterations because \code{index.lookup(key)} always returns a chunk $C_0$ with $C_0$.\code{minKey} $\le$ key,
+and so the searched keys are monotonically decreasing.  Since the number of keys is finite and the head of the list is never frozen, the loop
+returns an unfrozen chunk after a finite number of iterations. The ensuing traversal is also finite because the linked list is finite. 
+\end{proof}
+
+\begin{lemma}
+The  \code{get} and \code{scan} functions are wait-free.
+\end{lemma}
+\begin{proof}
+By Proposition~\ref{prop:locate}, the \code{locate} function is wait-free. 
+To complete the proof, observe that the loops performed in \code{helpPendingPuts} and \code{findLatest}
+ iterate (or search) over finites sets -- $C.k$ and $C.ppa$, and the scan loop (line~\ref{l:scan-loop}) traverses
+ chunks in the (finite) linked list. 
+\end{proof}
+
+\begin{lemma}
+The  \code{put} function is lock-free.
+\end{lemma}
+\begin{proof}
+We first show that as long as no \code{rebalance} occurs, \code{put} completes within a finite number of steps. 
+Beyond \code{rebalance} calls and recursive calls to \code{put} when it fails, \code{put} executes 
+two loops --  one in the \code{locate} function and one 
+%only one loop, 
+in phase 3 (lines~\ref{l:put-ll}--\ref{l:put-ll-end}).  
+The former is wait-free by  Proposition~\ref{prop:locate}. 
+Next, consider the loop in phase 3 of the \code{put}. 
+Observe that the \codeF{find} function is wait-free because it searches a finite array ($C$.k).
+Moreover, the CAS in line~\ref{l:put-insert1} fails at most a finite number of times (again, due to the finality of  $C$.k),
+and because we break when it succeeds, it is attempted a finite number of times. 
+Additionally, every time the CAS in line~\ref{l:put-insert2} is attempted (and either succeeds or fails),   \codeF{c.valPtr} increases,
+implying that after a finite number of attempts, {\codeF{c.valPtr} $ \geq$ \codeF{j}}, and the loops completes. 
+
+Next, consider \code{rebalance} triggered by the \code{put}. This can occur in \code{checkRebalance} (called in line~\ref{l:put-rebalance0}), 
+or when either $C.k$ or $C.v$ is full (line~\ref{l:put-full}), or when the chunk is already frozen (line~\ref{l:put-restart}). 
+To prove lock-freedom, 
+we will show that every time \code{rebalance} returns false (leading to a recursive call to \code{put}) or iterates  
+an additional time in an unbounded loop, or recursively calls \code{rebalance}, this is because some new  \code{put} returned successfully. 
+Note in particular, that if a  \code{rebalance} operation succeeds to replace the engaged sequence (and returns true), then it 
+completes the \code{put} that invoked it, and so we do not need to consider this case.
+
+We first argue that with the exception of rebalance stage 5 (replace), all other  \code{rebalance} stages  always complete within a finite number of steps. 
+Because the chunks list is finite, the two loops in stage 1 (engage) are finite. 
+Similarly, the list of engaged chunks and the number of PPA entries in each of them are finite, and so is the nested loop in stage 2 (freeze). 
+In stage 3 (pick minimal version), the loop over the PSA is finite, and it constructs a finite toHelp set, and so the loop over toHelp is finite as well.
+Likewise, the loops in stage 4 iterate over finite sets, namely, engaged chunks and keys in the data structures therein.  
+In stage 6, the conditional insertion to the index fails only if another thread succeeds to insert a chunk with the same \code{minKey}. 
+Because the insertion is retried only as long as the chunk is not frozen, interfering insertions to the index must be due older rebalances that began before 
+the current rebalance, of which there is  a finite number.
+Clearly, stage 7, which performs a single CAS, is also wait-free. 
+Hence, it remains to consider stage 5.   
+
+The first loop in stage 5 terminates once the CAS -- either of the thread executing the loop or of another thread -- succeeds to mark \code{last.next} as immutable. 
+The CAS fails if either \code{last.next} changes or another thread marks it.  
+But  \code{last.next} only changes if some \code{rebalance} succceds to replace an engaged chunk succeeding it, and this  \code{rebalance} 
+returns true upon completion, thus completing a \code{put} when it returns. 
+
+The second loop returns whenever either the current thread or another thread successfully replaces the \code{next} pointer at C's predecessor to 
+a node whose parent is $C$ ($C_f$ in case it is the current thread). 
+They fail to do so only in case the predecessor's  \code{next} pointer is marked, which in turn only occurs if the predecessor itself is engaged in 
+another rebalance. In this case, the current thread makes a recursive call to  \code{rebalance} in order to help the predecessor (line~\ref{l:nested-rebalance}), 
+and then executes another iteration of the loop. 
+Note that since the linked list is finite, the depth of the recursion is finite, so eventually the inner-most nested recursive call succesfully returns. 
+Once a nested call in line~\ref{l:nested-rebalance} returns after having replaced \code{pred} with a new chunk \code{pred'}, 
+either some thread will succeed to CAS the new predecessor's next pointer causing 
+the calling thread to exit the loop in the next iteration, or  the new chunk \code{pred'}  will undergo rebalance.
+However, for the latter to occur, it must be the case that at least one new \code{put}  has completed in  \code{pred'} following its rebalance.
+This is because when rebalance completes, \code{pred'.k} is sorted and  \code{pred'.k} and \code{pred'.v} are at most half full, and 
+because they hold more entries than twice the number of threads,   it is impossible for either of them to fill up due to pending put operations. 
+Thus, \code{rebalance} can only be required after a successful   \code{put} in   \code{pred'}.
+
+\remove{
+
+We prove by contradiction.
+Assume that \emph{put} is not lock-free.
+Hence there exists an infinite execution $\pi = C_0,s_1,C_1,\ldots$ such that
+after configuration $C_{k0}$ ($k0 \geq 0$) no operation completes and no new operation is invoked.
+%no operation completes after configuration $C_{k0}$.
+%
+We have already shown that \emph{get} and \emph{scan} are wait-free,
+ therefore there exists configuration $C_{k1}$ in $\pi$ ($k0 \leq k1$) such that after $C_{k1}$ all the running threads execute  \emph{put} operations.
+
+
+We write \emph{$t:X$.allocate} to denote an invocation of \emph{allocate} on chunk $X$ by thread $t$
+(\emph{allocate} is invoked by function \emph{put} at line $6$).
+We say that invocation \emph{t:$X$.allocate} is \emph{successful}
+if it returns a reference to a valid cell (i.e., it returns a non-null value).
+
+Consider an execution of the loop in function \emph{put} by thread $t$.
+If \emph{$t:X$.allocate} is not successful at iteration $i+1$ ($i \geq 1$) of $t$ ,
+then at iteration $i$ the invocation of \emph{$t:Y$.allocate} is also not successful.
+Hence thread $t$ invokes \emph{Rebalance($Y$)} at the end of iteration $i$.
+Therefore $Y \neq X$ and chunk $X$ has been added to kiwi (at some point) during iterations $i$ and $i+1$ of $t$
+(when a chunk is added to kiwi, this chunk is not full).
+Therefore another thread $t' \neq t$ successfully invoked \emph{$t':X$.allocate} (at some point) during iterations $i$ and $i+1$ of $t$
+(otherwise \emph{$t:X$.allocate} should be successful).
+%
+Since a thread do not start new iteration of this loop after a successful invocation of \emph{allocate} (see lines $6$--$9$ in \emph{put}),
+ we know that there exists configuration $C_{k2}$ in $\pi$ ($k1 \leq k2$) such that:
+after $C_{k2}$ the \emph{put} operations do not start new iterations of this loop.
+
+Since \emph{allocate} is wait-free, there exists configuration $C_{k3}$ in $\pi$ ($k2 \leq k3$) such that
+no thread executes \emph{allocate} after $C_{k3}$.
+Hence, no chunk becomes full in $\pi$ after configuration $C_{k3}$.
+
+
+%Consider the loop in function \emph{put}.
+%This loop may have iteration $i+1$ only if \emph{chunk.allocate} is not successful at iteration $i$ ---
+%this can only happen if (at some point) after the beginning the $i$-th iteration a concurrent \emph{put} operation has successfully invoked \emph{chunk.allocate} on the same chunk.
+%Hence there exists configuration $C_{k2}$ in $\pi$ ($k1 \leq k2$) such that: after $C_{k2}$ the \emph{put} operations do not start new iterations of this loop.
+
+In the following paragraphs we focus on the functions \emph{Kiwi::Rebalance} and \emph{Kiwi::Replace}.
+Notice that \emph{Kiwi::Rebalance} calls to \emph{Kiwi::Replace}; and that \emph{Kiwi::Replace} recursively calls to \emph{Kiwi::Rebalance} in line $20$.
+An invocation of \emph{Kiwi::Rebalance} on chunk $X$ removes $X$ from kiwi:
+hence for each thread $t$ and chunk $X$, \emph{Rebalance($X$)} may be invoked at most once by $t$.
+
+Let $N_{puts}$ be the number of \emph{put} operations after configuration $C_{k3}$.
+Let $N_E$ be the maximal number of new chunks created by an invocation of \emph{balance()} (in our implementation $N_E=4$).
+Since after $C_{k3}$ no chunk may become full, at most $N_{puts} \times N_E$ new chunks may be created after $C_{k3}$.
+Therefore, after configuration $C_{k3}$ the threads invoke function  \emph{Kiwi::Rebalance} a finite number of times.
+Hence there exists a configuration $C_{k4}$ in $\pi$ ($k3 \leq k4$) such that \emph{Kiwi::Rebalance} is not invoked after $C_{k4}$.
+
+
+
+%Let $N_{puts}$ be the number of \emph{put} operations after configuration $C_{k2}$.
+%After $C_{k2}$, at most $N_{puts}$ chunks may become full.
+%If $N_E$ is the maximal number of new chunks created by an invocation of \emph{balance()},
+%then after configuration $C_{k2}$ at most $N_{puts} \times N_E$ new chunks may be created.
+%Therefore, after configuration $C_{k2}$ the threads invoke function  \emph{Kiwi::Rebalance} a finite number of times.
+%Hence there exists a configuration $C_{k3}$ in $\pi$ ($k2 \leq k3$) such that \emph{Kiwi::Rebalance} is not invoked after $C_{k3}$.
+
+%Consider the loop in \emph{Kiwi::Replace}.
+
+Since the other functions invoked by \emph{put} are lock-free\footnote{
+The other functions invoked by \emph{put}, \emph{Kiwi::Rebalance} and \emph{Kiwi::Replace} are lock-free:
+we assume that \emph{index.replace} is lock-free, the other ones are trivially wait-free.},
+there exists a configuration $C_{k5}$ in $\pi$ ($k4 \leq k5$) such that all the running threads
+after $C_{k5}$ execute the loop in \emph{Kiwi::Replace} (and this loop is never terminated).
+%
+Hence, the CAS at line $22$ always fails after configuration $C_{k5}$ (i.e., no CAS updates shared memory after $C_{k5}$).
+This is a contradiction, because the  CAS at line $22$ may fail only if shared memory has been updated since the beginning of the iteration.
+
+
+
+%
+%
+%
+%Consider the loop in \emph{Kiwi::Replace}.
+%Since the other functions are lock-free, there exists a configuration $C_{k4}$ in $\pi$ ($k3 \leq k4$) such that all the threads which are running after $C_{k4}$ do not exit from this loop.
+%Hence, the CAS at line $22$ always fails after configuration $C_{k4}$ (i.e., no CAS updates shared memory after $C_{k4}$).
+%This is a contradiction, because the  CAS at line $22$ may fail only if shared memory has been updated since the beginning of the iteration.
+}
+\end{proof}

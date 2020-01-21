@@ -1,0 +1,6 @@
+threads	KiWi	KAry	JavaSkipList	SnapTree
+1	64	68	65	111	
+2	65	69	65	112	
+4	67	68	65	112	
+8	75	70	65	105
+16 	90	71	65	106	

@@ -1,0 +1,97 @@
+\section{Introduction}
+\label{sec:intro}
+
+{\bf{Motivation and goal.}} The ordered \emph{key-value} (KV) map abstraction has been recognized as a popular programming interface
+since the dawn of computer science, and remains an essential component of virtually any computing system today.
+It is not surprising, therefore, that with the advent of multi-core computing,  many scalable concurrent
+implementations have emerged,
+e.g.,~\cite{JavaConcurrentSkipList,LinkedListBP,BraginskyP2012,Hendler04,Kogan12,NatarajanM2014}.
+
+KV-maps have become a centerpiece to web-scale data processing systems such as
+Google's F1~\cite{Shute2013}, which powers its AdWords
+%\footnote{\url{https://www.google.com/adwords/}}
+business, and Yahoo's Flurry~\cite{flurry} --
+%\footnote{\url{https://developer.yahoo.com/flurry/docs/analytics/}},
+the technology behind Mobile Developer Analytics.
+For example,
+as of early 2016,  Flurry  reported systematically collecting data of 830\!,000 mobile
+apps~\cite{appmatrix}
+%\footnote{\url{http://flurrymobile.tumblr.com/post/144245637325/}}  % appmatrix
+running on 1.6 billion
+user devices~\cite{phablet}.
+%\footnote{\url{http://flurrymobile.tumblr.com/post/117769261810/}}. % the-phablet-revolution
+Flurry streams  this data into a massive index, and provides
+%application developers with tools that produce
+a wealth of reports over the collected data.
+Such
+\emph{real-time analytics}  applications push KV-store scalability requirements to new levels and raise novel use cases.
+Namely, they require
+%  real-time performance for
+both
+(1) low latency ingestion of incoming data, and (2) high performance analytics of the resulting dataset.
+
+The stream scenario requires the KV-map to support fast \emph{put} operations,
+whereas  analytics  relies on (typically large) \emph{scans} (i.e., range queries).
+The consistency (atomicity) of scans is essential for correct analytics.
+The new challenge that arises in this environment is allowing consistent scans
+to be obtained \emph{while the data is being updated in real-time}.
+
+% KiWi is about balancing scans and updates
+We present {\kiwi}, the first KV-map to efficiently support large atomic
+scans as required for data analytics alongside real-time updates.
+Most concurrent KV-maps today do not support atomic scans at all~\cite{JavaConcurrentSkipList,LinkedListBP,BraginskyP2012,Hendler04,NatarajanM2014,Kogan12,Lomet13,ArbelGHK15}.
+A handful of recent works support atomic scans in KV-maps, but they either
+hamper updates when scans are ongoing~\cite{BronsonCCO2010,Prokopec12},
+or fail to ensure progress to scans in the presence of updates~\cite{BrownA12}.
+See Section~\ref{sec:related} for a discussion of related work.
+
+The emphasis in \kiwi's design is on facilitating synchronization between 
+scans and updates. Since scans are typically long, our solution avoids livelock 
+and wasted work by always allowing them to complete (without ever needing to 
+restart). On the other hand, updates are short (since only single-key puts are supported), 
+therefore restarting them in cases of conflicts is practically ``good enough'' -- 
+restarts are rare, and when they do occur, little work is wasted. 
+Formally, \kiwi\  provides \emph{wait-free} gets and scans and \emph{lock-free} puts.
+
+
+{\bf{Design principles.}}
+% Versions on-demand, managed by scans
+To support atomic wait-free scans, \kiwi\ employs multi-versioning~\cite{BHG:Book87}. But in contrast to the standard approach~\cite{mv-stm-chapter}, where each put creates a new version for the updated key, \kiwi\ only keeps old versions that are needed for ongoing scans, and otherwise overwrites the existing version. Moreover, version numbers are managed by scans rather than updates, and put operations may
+overwrite data without changing its version number. This unorthodox approach offers significant performance gains given that scans typically retrieve large amounts of data and hence take much longer than  updates.
+It also necessitates a fresh approach to synchronizing updates and scans, which is a staple of \kiwi's design.
+
+% Chunks
+A second important consideration is efficient memory access and management. Data in \kiwi\ is organized
+as a collection of {\em chunks}, which are large blocks of contiguous key ranges.
+Such data layout is cache-friendly and suitable for non-uniform memory architectures (NUMA), as it
+allows long scans to proceed with few fetches of new data to cache or to local memory.
+Chunks regularly undergo maintenance to improve their internal organization and space utilization (via \emph{compaction}), and the distribution of key ranges into chunks (via splits and merges).
+% All these issues  are handled by
+\kiwi's {\em rebalance\/} abstraction performs batch processing
+of such maintenance operations. The synchronization of
+rebalance operations with ongoing puts and scans is subtle, and much of the \kiwi\ algorithm is dedicated to handling
+possible races in this context.
+
+% Index
+Third, to facilitate concurrency control, we separate chunk management from indexing for fast lookup:
+\kiwi\ employs an \emph{index} separately from the (chunk-based) data layer.
+The index is updated lazily once rebalancing of the data layer completes.
+
+% Data structure Balanced
+Finally, \kiwi\ is a balanced data structure, providing logarithmic access latency in the absence of contention.
+This is achieved via a combination of (1) using a balanced index for fast chunk lookup and (2) partially sorting keys in each
+chunk to allow for fast in-chunk binary search. The \kiwi\ algorithm is detailed in Section~\ref{sec:alg}
+and we prove its correctness in Section~\ref{sec:proof}.
+% \todo{Consider saying we're the only data structure snapshot algorithm that has a formal proof, which is in the appendix.}
+
+
+{\bf{Evaluation results.}}
+\kiwi's Java implementation is available in github\footnote{https://github.com/sdimbsn/KiWi}. In Section~\ref{sec:eval} we benchmark it under multiple representative workloads.
+In the vast majority of  experiments, it significantly outperforms existing concurrent KV-maps that support scans.
+\kiwi's advantages are particularly pronounced in our target scenario with long scans in the presence of concurrent puts, where
+it not only performs \emph{all} operations faster than the competitors~\cite{BrownA12,BronsonCCO2010},
+but actually executes either updates or scans an order of magnitude faster than every other solution supporting atomic scans.
+Notably, \kiwi's atomic scans are also two times faster than the \emph{non-atomic}
+ones offered by the Java Skiplist~\cite{JavaConcurrentSkipList}. 
+
+

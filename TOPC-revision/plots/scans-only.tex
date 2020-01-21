@@ -1,0 +1,213 @@
+\begin{tikzpicture}
+\begin{axis}[
+	mystyle,
+	unbalanced,
+	title={get, threads scaling},
+	ylabel = { Throughput \\ M ops/sec},
+	xlabel = {(a)}
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/get.txt}; 
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/get.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/get.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/get.txt};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[
+	mystyle,
+	unbalanced,
+	title={put, threads scaling},
+	xlabel = {(b)}	
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/insert-delete.txt}; 
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/insert-delete.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/insert-delete.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/insert-delete.txt};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[
+	mystyle,
+	unbalanced,
+	title= { put/get, threads scaling},
+	xlabel = {(c)}
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/insert-delete-get.txt};
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/insert-delete-get.txt};  
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/insert-delete-get.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/insert-delete-get.txt};
+\end{axis}
+\end{tikzpicture}
+
+\begin{tikzpicture}
+\begin{axis}[
+	rangestyle,
+	title={\small{32 threads, scan size scaling}},
+	ylabel = { Scan throughput, \\ M keys/sec},
+	xlabel = {(d)}
+]
+\addplot [black,mark=square*] table [x={ranges}, y={KiWi}]
+{results/scans_by_range.txt}; 
+\addplot [orange,mark=diamond] table [x={ranges}, y={KAry}]
+{results/scans_by_range.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={ranges}, y={JavaSkipList}]
+{results/scans_by_range.txt}; 
+\addplot [magenta,mark=+] table [x={ranges}, y={SnapTree}]
+{results/scans_by_range.txt};
+\end{axis}
+\end{tikzpicture}
+%%%%%%%%%%%%%%%%%%%
+\begin{tikzpicture}
+\begin{axis}[
+	mystyle,
+	scansOnly,
+	title={\small{scan size=2, threads scaling}},
+	xlabel = {(e)}
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/scans2.txt}; 
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/scans2.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/scans2.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/scans2.txt};
+\end{axis}
+\end{tikzpicture}
+%%%%%%%%%%%%%%%%
+\begin{tikzpicture}
+\begin{axis}[
+	mystyle,
+	scansOnly,
+	title= {\small{scan size=32K, threads scaling}},
+	xlabel = {(f)}
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/scans32K.txt};
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/scans32K.txt};  
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/scans32K.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/scans32K.txt};
+\end{axis}
+\end{tikzpicture}
+
+\begin{tikzpicture}
+\begin{axis}[
+	rangestyle,
+	ylabel = { Scan throughput under \\ put contention, M keys/sec},
+	title={\small{16 threads, scan size scaling}},
+	xlabel= {(g)}
+]
+\addplot [black,mark=square*] table [x={ranges}, y={KiWi}]
+{results/scans_mixed_by_range.txt}; 
+\addplot [orange,mark=diamond] table [x={ranges}, y={KAry}]
+{results/scans_mixed_by_range.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={ranges}, y={JavaSkipList}]
+{results/scans_mixed_by_range.txt}; 
+\addplot [magenta,mark=+] table [x={ranges}, y={SnapTree}]
+{results/scans_mixed_by_range.txt};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[
+	mystyle16,
+	putScan,
+	title={\small{scan size=2, threads scaling}},
+	xlabel= {(h)}
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/put_scan2.txt}; 
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/put_scan2.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/put_scan2.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/put_scan2.txt};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[
+	mystyle16,
+	unbalanced,
+	title= {\small{scan size=32K, threads scaling}},
+	xlabel= {(i)}
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/put_scan32K.txt};
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/put_scan32K.txt};  
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/put_scan32K.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/put_scan32K.txt};
+\end{axis}
+\end{tikzpicture}
+
+\begin{tikzpicture}
+\begin{axis}[
+	rangestyle,
+	ylabel = { Put throughput under \\ scan  contention, M ops/sec},
+	xlabel= {(j)},
+	title= {16 threads, scan size scaling}
+]
+\addplot [black,mark=square*] table [x={ranges}, y={KiWi}]
+{results/puts_mixed_by_range.txt}; 
+\addplot [orange,mark=diamond] table [x={ranges}, y={KAry}]
+{results/puts_mixed_by_range.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={ranges}, y={JavaSkipList}]
+{results/puts_mixed_by_range.txt}; 
+\addplot [magenta,mark=+] table [x={ranges}, y={SnapTree}]
+{results/puts_mixed_by_range.txt};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[
+	mystyle16,
+	sPut,
+	xlabel= {(k)},
+	title={scan size=2, threads scaling}
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/s_put2.txt}; 
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/s_put2.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/s_put2.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/put_scan2.txt};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[
+	mystyle16,
+	unbalanced,
+	xlabel= {(l)},
+	title={scan size=32K, threads scaling}
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/s_put32K.txt};
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/s_put32K.txt};  
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/s_put32K.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/s_put32K.txt};
+\end{axis}
+\end{tikzpicture}
+
+
+\ref{scansOnlyLegend}

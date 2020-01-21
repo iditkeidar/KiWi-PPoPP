@@ -1,0 +1,76 @@
+
+\begin{algorithm}[htb]
+\codesize
+\begin{center}
+\begin{algorithmic}[1]
+	\algrestore{kiwi}
+	\LineComment per-chunk rebalance data (cf.~Algorithm~\ref{alg:chunk}) fields:
+	\State \code{status}	\Comment infant, normal, or frozen
+	\State \code{parent}    \Comment for infant, trigger chunk of rebalance 
+	\State \code{ro} pointer to \code{rebalanceObj}, initially $\bot$; \code{ro} holds  $\langle$first, last, next$\rangle$   
+\Statex
+\LineComment engagement algorithm
+	\State \code{ro} $\leftarrow$ new rebalance object, initially $\langle C, C, C \rangle$ 
+	\State CAS($C$.\code{ro}, $\bot$, \code{ro})
+	\State    \code{ro} $\leftarrow$ $C$.\code{ro} \Comment use successfully set \code{ro}
+
+	\While{\code{ro.next} $\neq$ \code{none}} 
+		\State \code{last} $\leftarrow$ \code{ro.last} \Comment get pointer to last engaged
+		\State \code{next} $\leftarrow$ \code{ro.next} \Comment get pointer to next candidate
+		\State CAS(\code{next.ro}, $\bot$, \code{ro}) \Comment engage candidate
+		\If{ \code{next.ro} = \code{ro} } \Comment if successful
+			\State CAS(\code{ro.last, last, next}) \Comment update \code{ro} 
+			\State \code{nextNext} $\leftarrow$ \code{ro.last.next} \Comment get next candidate
+			\If{\code{policy(nextNext)}} \Comment Try to engage more chunks 
+				\State CAS(\code{ro.next, next, nextNext})
+		\Else
+		 	 \State CAS(\code{ro.next, next, none})
+			\EndIf	
+		\Else
+		 	 \State CAS(\code{ro.next, next, none})
+		\EndIf 
+
+	\EndWhile
+
+\vspace{-1em}
+	\algstore{kiwi} %% Uncomment to add another pseudocode figure
+\end{algorithmic}
+\end{center}
+\caption{\kiwi\ rebalance engagement phase.}
+\label{alg:engage}
+\end{algorithm}
+
+\begin{algorithm}[tb]
+\codesize
+\begin{center}
+\begin{algorithmic}[1]
+	\algrestore{kiwi}
+	\LineComment per-chunk rebalance data (cf.~Algorithm~\ref{alg:chunk}) fields:
+	\State \code{status}	\Comment infant, normal, or frozen
+	\State \code{parent}    \Comment for infant, trigger chunk of rebalance 
+	\State \code{ro} pointer to \code{rebalanceObj}, initially $\bot$; \code{ro} holds  $\langle$first, next, last$\rangle$   
+\Statex
+\LineComment engagement algorithm for trigger chunk $C$
+	\State \code{ro} $\leftarrow$ new \code{rebalanceObj}, initially $\langle C, C, \bot \rangle$ 
+	\State CAS($C$.\code{ro}, $\bot$, \code{ro})
+	\State    \code{ro} $\leftarrow$ $C$.\code{ro} \Comment use   \code{ro} set by successful CAS
+
+	\State \code{next} $\leftarrow$ \code{ro.next} \Comment get pointer to next candidate
+	\While{\code{next} $\neq \bot$ } \Comment engagement loop
+		\State CAS(\code{next.ro}, $\bot$, \code{ro}) \Comment try to engage candidate
+		\If{ \code{next.ro} = \code{ro} } \Comment if successful, consider  next chunk
+			\State \code{nextNext} $\leftarrow$ \code{policy(next)} \Comment may return $\bot$
+		\Else \Comment cannot engage more chunks
+			\State \code{nextNext} $\leftarrow \bot$
+		\EndIf
+		\State CAS(\code{ro.next, next, nextNext})
+		\State \code{next} $\leftarrow$ \code{ro.next} \Comment get pointer to next candidate
+	\EndWhile
+	\State \code{ro.last} $\leftarrow$ last chunk $Ch$ with $Ch$.\code{ro} = \code{ro} in list from \code{ro.first}
+\vspace{-1em}
+	\algstore{kiwi} %% Uncomment to add another pseudocode figure
+\end{algorithmic}
+\end{center}
+\caption{\kiwi\ rebalance data and engagement code.}
+\label{alg:engage}
+\end{algorithm}

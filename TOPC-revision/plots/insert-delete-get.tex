@@ -1,0 +1,43 @@
+\begin{tikzpicture}
+\begin{axis}[mystyle,unbalanced,title={\textbf{get}},
+ylabel = { million ops/sec}
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/get.txt}; 
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/get.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/get.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/get.txt};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[mystyle,unbalanced,
+title={\textbf{put}}]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/insert-delete.txt}; 
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/insert-delete.txt}; 
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/insert-delete.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/insert-delete.txt};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[mystyle,unbalanced,
+title= { \textbf{put/get}}]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/insert-delete-get.txt};
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/insert-delete-get.txt};  
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/insert-delete-get.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/insert-delete-get.txt};
+\end{axis}
+\end{tikzpicture}
+
+
+\ref{singleKeyOpsLegend}

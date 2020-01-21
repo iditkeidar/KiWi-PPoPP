@@ -1,0 +1,156 @@
+\renewcommand{\ttdefault}{pcr}
+%\algrenewcommand\textkeyword{\texttt}
+\algrenewcommand\algorithmicif{\texttt{if}}
+\algrenewcommand\algorithmicthen{\texttt{then}}
+\algrenewcommand\algorithmicfunction{\textsc{Function}}
+\algrenewcommand\algorithmicforall{\texttt{for all}}
+\algrenewcommand\algorithmicdo{\texttt{do}}
+\algrenewcommand\textproc{\textit}
+\newcommand{\codesize}{\footnotesize}
+
+
+
+%\section{KiWi Algorithm}\label{sec:algorithm}
+KiWi attributes
+\begin{itemize} 
+\item Index index
+\item long version
+\item String[] threadArray
+\end{itemize}
+methods
+\begin{itemize} 
+\item void put(Key key, Value val)
+\item
+\item
+\item Chunk findChunkInLinkedList(Chunk chunk, Key key)
+\item void publishInThreadArray(Cell cell)
+\item void clearThreadArrayEntry()
+\item Chunk doCompaction(Chunk chunk)
+\item Compaction buildCompactionObj(Chunk main)
+\end{itemize} 
+
+Compaction object attributes
+\begin{itemize} 
+%\item List$<$Chunk$>$ chunkList
+\item Chunk triggerChunk
+\item Key firstKey
+\item Key lastKey
+\item Index index
+\item List$<$Chunk$>$ newChunks
+\end{itemize}
+Compaction methods
+\begin{itemize} 
+\item helpCompacting()
+\item void engageChunksInCompaction()
+\item IKey findFirstKey()
+\item IKey findLastKey()
+\item List$<$Chunk$>$ allocateNewChunksLinkedList()
+\item void freezeAndCopyCompact()
+\item Chunk getFirstNewChunk()
+\end{itemize}
+
+Index methods
+\begin{itemize} 
+\item void linkTail(Chunk tail, Chunk linkTo, IKey key)
+\item void swapChunk(IKey key, Chunk newChunk)
+\item void removeAllKeysBetween(IKey first, IKey last)
+\item void addNewKeysBetween(IKey first, IKey last, List$<$Chunk$>$ chunkList)
+\item void addBetween(IKey newKey, IKey curr, IKey next, int aba) 
+\item IKey findIKey(Key key)
+\end{itemize}
+
+Chunk methods
+\begin{itemize} 
+\item void engageInCompaction(Compaction obj)
+\item boolean isEngagedInCompaction(Compaction obj) 
+\item Compaction getCompactionObj()
+\item Cell allocate(Key key, Value val)
+\end{itemize}
+
+Key methods
+\begin{itemize} 
+\item Chunk chunk()
+\item $<$Key,int$>$ next() 
+\item void swap(Chunk oldChunk, Chunk newChunk)
+\end{itemize}
+
+\begin{figure}
+	\begin{center}
+		\begin{algorithmic}[1]{}
+		\Function{helpCompacting}{}
+		\State engageChunksInCompaction() \Comment{engage chunks starting with trigger chunk}
+		\Statex \Comment{continue with left/right chunk interchangably}  
+		\State compObj = triggerChunk.getCompactionObj()
+		\State \textbf{if} compObj != this \textbf{then}
+		\State \ \ return compObj.helpCompacting()
+		\State firstKey = findFirstKey() \Comment{first key with engaged chunk}
+		\State lastKey = findLastKey() \Comment{last key with engaged chunk}
+		\State CAS(newChunks, null, allocateNewChunksLinkedList()) \Comment{estimate necessary chunks number}
+		\State freezeAndCopyCompact() \Comment{copy live versions from engaged chunks to new chunks linked list}
+		\Statex \Comment{may adjust (append/remove links to) new linked list as necessary}
+		\State index.linkTail(newChunks.tail(), lastKey.chunk().next(), lastKey.next()) \Comment{may incur helping} %\Comment{link tail of new chunks to index} 
+		\Statex \Comment{ compaction object to the right of tail}
+%		\State \textbf{if} helpType == HELP\_LINK\_TAIL \textbf{then} return
+		\State index.swapChunk(firstKey, getFirstNewChunk()) \Comment{may incur helping compaction}%(to link tail of)} 
+		\Statex \Comment{ object to the left of firstKey}
+%		\State \textbf{if} helpType == HELP\_SWAP\_HEAD \textbf{then} return
+		\State index.removeAllKeysBetween(firstKey, lastKey) \Comment{firstKey (exclusive)\ldots lastKey (inclusive)}
+		\State index.addNewKeysBetween(firstKey, lastKey, newChunks.suffixFrom(1)) 
+		\State return getFirstNewChunk()
+%		\State currentKey = firstKey
+%		\State \textbf{for each} i in 1\ldots newChunks.length-1 \textbf{do}
+%		\State \ \ aba = currentKey.next().aba()
+%		\State \ \ index.addBetween(new Key(newChunks.get(i)), currentKey, lastKey, aba) %\Comment{succeeds iff}
+%		%\Statex \Comment{currentKey.next() == $<$lastKey,aba$>$}
+%		\State \ \ currentKey = currentKey.next().key()
+		\EndFunction
+		\end{algorithmic}
+		\caption{x-way compaction code} \label{figure:compaction}
+	\end{center}
+\end{figure}
+
+\begin{figure}
+	\begin{center}
+		\begin{algorithmic}[1]{}
+		\Function{put}{Key key, Value val}
+		\State chunk = index.findKey(key).chunk()
+		\State \textbf{while} true \textbf{do}
+		\State \ \ chunk = findChunkInLinkedList(chunk, key)
+		\State \ \ cell = chunk.allocate(key, val)
+		\State \ \ \textbf{if} cell == null \textbf{then} 
+		\State \ \ \ \ chunk = doCompaction(chunk)
+		\State \ \ \textbf{else}
+		\State \ \ \ \ publishInThreadArray(cell) \Comment{others can now help set the cell version}
+		\State \ \ \ \ ver = version \Comment{ read current version}
+		\State \ \ \ \ CAS(cell.version, null, ver) \Comment{ try setting cell version}
+		\State \ \ \ \ ver = cell.version \Comment{ read version that was successfully set}
+		\State \ \ \ \ \textbf{if} ver == FREEZE \textbf{then} \Comment{ frozen due to compaction}
+		\State \ \ \ \ \ \ clearThreadArrayEntry() \Comment{ clear from thread array and retry}
+		\State \ \ \ \ \ \ chunk = doCompaction(chunk)
+		\State \ \ \ \ \textbf{else} 
+		\State \ \ \ \ \ \ chunk.insertCellIntoOrder(cell) \Comment{inser cell in its order within the chunk}
+		\State \ \ \ \ \ \ clearThreadArrayEntry() \Comment{ clear from thread array and finish}
+		\State \ \ \ \ \ \ return
+		\EndFunction
+		\Statex 
+		\Function{doCompaction}{Chunk chunk}
+		\State compObj = chunk.getCompactionObj()
+		\State \textbf{if} compObj == null \textbf{then}
+		\State \ \ compObj = buildCompactionObj(chunk)
+		\State return compObj.helpCompacting()
+		\EndFunction
+		\end{algorithmic}
+		\caption{KiWi code} \label{figure:kiwi}
+	\end{center}
+\end{figure}
+
+\remove{
+\begin{figure}
+	\begin{center}
+		\begin{algorithmic}[1]{}
+		\end{algorithmic}
+		\caption{x-way compaction code} \label{figure:compaction}
+	\end{center}
+\end{figure}
+
+}

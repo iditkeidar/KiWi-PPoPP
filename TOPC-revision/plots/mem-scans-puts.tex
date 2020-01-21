@@ -1,0 +1,19 @@
+\begin{tikzpicture}
+\begin{axis}[
+	memstyle16,	
+	title= {\small{Scan (32 keys) with background put }},
+	xlabel = {Scan threads\\},
+	ylabel = {Memory footprint (MB)}
+]
+\addplot [black,mark=square*] table [x={threads}, y={KiWi}]
+{results/mem_p_s_r32.txt};
+\addplot [orange,mark=diamond] table [x={threads}, y={KAry}]
+{results/mem_p_s_r32.txt};  
+\addplot [blues5,mark=10-pointed star] table [x={threads}, y={JavaSkipList}]
+{results/mem_p_s_r32.txt}; 
+\addplot [magenta,mark=+] table [x={threads}, y={SnapTree}]
+{results/mem_p_s_r32.txt};
+\end{axis}
+\end{tikzpicture}
+
+\ref{singleKeyOpsLegend}
