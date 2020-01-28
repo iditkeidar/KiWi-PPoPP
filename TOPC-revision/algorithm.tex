@@ -809,8 +809,10 @@ To this end, we assume that the index supports a form of semantic load-linked an
 (2) \code{deleteConditional(k,$C$)} --- removes key \code{k} only if mapped to chunk $C$; and
 (3) \code{putConditional(k,prev,$C$)} --- maps \code{k} to $C$ provided that the highest key in the index that does not exceed
 \code{k} is mapped to \code{prev}.
-Such an index can be implemented in non-blocking ways using low-level atomic operations \cite{BraginskyP2012}; in our implementation,
-we instead use locks.
+We note that it is straightforward to implement such a non-blocking index using the extended load-linked and store-conditional primitives, LLX and SCX, 
+due to Brown et al.~\cite{DBLP:conf/podc/BrownER13}; a general approach for implementing non-blocking search trees using these primitives is given in~\cite{DBLP:conf/ppopp/BrownER14}. 
+In our implementation, we instead use locks. This does not affect performance as index nodes are locked infrequently (only upon rebalance), 
+and only by background threads off the main execution path. 
 
 To index a new chunk $C$, we first call \code{loadPrev($C$.minKey)}, then verify that $C$ is not frozen, and if so,
 add it conditionally to the index. 

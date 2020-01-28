@@ -72,7 +72,7 @@ For example, with 32 threads, it exceeds its closest competitor, {\kary}, by ove
 Here too, {\kiwi}'s advantage stems from high locality of access while scanning big chunks. 
 
 \textbf{Concurrent scans and puts.}
-We now turn to the scenario that combines analytics (scan operations) with 
+We now turn to the scenario that combines scan operations with 
 real-time updates (put operations). This is the primary use case that motivated 
 the design principles behind {\kiwi}. Half of the threads perform scans, whereas 
 the second half performs puts. 

@@ -61,13 +61,14 @@
  \renewcommand{\shortauthors}{Basin et al.}
 
 \begin{abstract}
+\remove{
 Modern big data processing platforms employ huge in-memory \emph{key-value} (KV) maps.
 Their applications simultaneously drive high-rate data ingestion \emph{and} large-scale analytics.
 These two scenarios expect KV-map implementations that scale well with both real-time updates
 and large atomic scans triggered by range queries.
 %However, today's state-of-the art concurrent KV-maps  fall short of satisfying these requirements.
 % -- they either provide only limited or non-atomic scans,  or severely hamper updates when scans are ongoing.
-
+}
 We present {\kiwi}, the first atomic KV-map to efficiently support simultaneous  large scans and real-time access.
 The  key to achieving this is treating scans as first class citizens, and organizing the data structure around them.
 %whereas most existing concurrent KV-maps do not provide

@@ -7,38 +7,16 @@ It is not surprising, therefore, that with the advent of multi-core computing,  
 implementations have emerged,
 e.g.,~\cite{JavaConcurrentSkipList,LinkedListBP,BraginskyP2012,Hendler04,Kogan12,NatarajanM2014}.
 
-KV-maps have become a centerpiece to web-scale data processing systems such as
-Google's F1~\cite{Shute2013}, which powers its AdWords
-%\footnote{\url{https://www.google.com/adwords/}}
-business, and Yahoo's Flurry~\cite{flurry} --
-%\footnote{\url{https://developer.yahoo.com/flurry/docs/analytics/}},
-the technology behind Mobile Developer Analytics.
-For example,
-as of early 2016,  Flurry  reported systematically collecting data of 830\!,000 mobile
-apps~\cite{appmatrix}
-%\footnote{\url{http://flurrymobile.tumblr.com/post/144245637325/}}  % appmatrix
-running on 1.6 billion
-user devices~\cite{phablet}.
-%\footnote{\url{http://flurrymobile.tumblr.com/post/117769261810/}}. % the-phablet-revolution
-Flurry streams  this data into a massive index, and provides
-%application developers with tools that produce
-a wealth of reports over the collected data.
-Such
-\emph{real-time analytics}  applications push KV-store scalability requirements to new levels and raise novel use cases.
-Namely, they require
-%  real-time performance for
-both
-(1) low latency ingestion of incoming data, and (2) high performance analytics of the resulting dataset.
-
-The stream scenario requires the KV-map to support fast \emph{put} operations,
-whereas  analytics  relies on (typically large) \emph{scans} (i.e., range queries).
-The consistency (atomicity) of scans is essential for correct analytics.
-The new challenge that arises in this environment is allowing consistent scans
+In recent years, KV-maps have become a centerpiece to \emph{real-time analytics}  applications that
+require both
+(1) low latency ingestion of incoming data, and (2) range queries involving (typically large) \emph{scans}.  
+The consistency (atomicity) of scans is essential for  query results to be correct.
+A  challenge that arises in this environment is allowing consistent scans
 to be obtained \emph{while the data is being updated in real-time}.
 
 % KiWi is about balancing scans and updates
 We present {\kiwi}, the first KV-map to efficiently support large atomic
-scans as required for data analytics alongside real-time updates.
+scans  alongside real-time updates.
 Most concurrent KV-maps today do not support atomic scans at all~\cite{JavaConcurrentSkipList,LinkedListBP,BraginskyP2012,Hendler04,NatarajanM2014,Kogan12,Lomet13,ArbelGHK15}.
 A handful of recent works support atomic scans in KV-maps, but they either
 hamper updates when scans are ongoing~\cite{BronsonCCO2010,Prokopec12},
