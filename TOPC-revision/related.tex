@@ -93,8 +93,9 @@ degrading performance as scan sizes increase. Additionally,
 \kary is unbalanced; its performance plunges when keys are inserted in sequential order
 (a common practical case).
 
-Some techniques offer generic add-ons to support atomic \emph{snapshot iterator} in existing data structures~\cite{Petrank2013, wttm2016}.
-However,~\cite{Petrank2013} supports only one scan at a time, and~\cite{wttm2016}'s throughput is lower than \kary's under low contention. 
+Some techniques offer generic add-ons to support atomic \emph{snapshot iterator} in existing data structures~\cite{Petrank2013, wttm2016,DBLP:conf/ppopp/Arbel-Raviv018}.
+Of these,~\cite{Petrank2013} supports only one scan at a time and~\cite{wttm2016}'s throughput is lower than \kary's under low contention;~\cite{DBLP:conf/ppopp/Arbel-Raviv018}
+assumes epoch-based memory reclamation and is intended for C++ programs rather than managed languages like Java.
 
 Most concurrent key-value maps do not support atomic  scans in any
 way~\cite{JavaConcurrentSkipList,LinkedListBP,BraginskyP2012,Hendler04,NatarajanM2014,Kogan12,Lomet13}.
