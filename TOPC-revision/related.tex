@@ -91,11 +91,18 @@ Their scans are atomic and lock-free, and outperform those  of Ctrie and \snaptr
 However, each conflicting put restarts the scan,
 degrading performance as scan sizes increase. Additionally,
 \kary is unbalanced; its performance plunges when keys are inserted in sequential order
-(a common practical case).
+(a common practical case). Recent work by 
+Fatourou et al.~\cite{DBLP:conf/spaa/FatourouPR19} also presented an unbalanced 
+binary search tree that supports wait-free range scans.
 
 Some techniques offer generic add-ons to support atomic \emph{snapshot iterator} in existing data structures~\cite{Petrank2013, wttm2016,DBLP:conf/ppopp/Arbel-Raviv018}.
 Of these,~\cite{Petrank2013} supports only one scan at a time and~\cite{wttm2016}'s throughput is lower than \kary's under low contention;~\cite{DBLP:conf/ppopp/Arbel-Raviv018}
 assumes epoch-based memory reclamation and is intended for C++ programs rather than managed languages like Java.
+
+Other works~\cite{DBLP:conf/spaa/Ben-DavidB0W19,DBLP:conf/cost/KeidarP15,DBLP:conf/wdag/PerelmanBLK11,DBLP:conf/ppopp/SunFB18} 
+support wait-free read-only memory transactions via a functional approach, 
+where updates create new versions rather than over-write existing ones.  More generally than \kiwi, they support full-fledged memory transactions~\cite{DBLP:conf/spaa/Ben-DavidB0W19,DBLP:conf/cost/KeidarP15,DBLP:conf/wdag/PerelmanBLK11}  or aggregation functions over sub-trees~\cite{DBLP:conf/ppopp/SunFB18}. 
+Some of these  mitigate the overhead of version creation  by batching updates and performing them in bulk~\cite{DBLP:conf/ppopp/SunFB18,DBLP:conf/spaa/Ben-DavidB0W19}.   
 
 Most concurrent key-value maps do not support atomic  scans in any
 way~\cite{JavaConcurrentSkipList,LinkedListBP,BraginskyP2012,Hendler04,NatarajanM2014,Kogan12,Lomet13}.

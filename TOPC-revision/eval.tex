@@ -7,14 +7,22 @@
 implementation~\cite{JavaConcurrentSkipList} for the index with added locks to support conditional updates. 
 The code makes extensive use of efficient 
 array copy methods~\cite{JavaArrayCopy}. {\kiwi}'s chunk size is set to 1024. 
+We have found this chunk size to be big enough to offer good locality. Bigger chunks favor puts 
+albeit with diminishing returns, and mildly slow down gets and scans because larger chunks 
+allow more ``imbalance''  (obsolete data  to iterate through, long bypasses in the search) than smaller ones.
 
 The rebalance policy is tuned as follows:
 $\code{checkRebalance}$  invokes rebalance with probability $0.15$ whenever
- the batched prefix consists of less than $0.625$ of the linked list. Rebalance 
+the batched prefix consists of less than $0.625$ of the linked list. Rebalance 
 engages the next chunk whenever doing so will reduce the number of chunks in the list. 
 We did not implement the piggybacking of puts on rebalance, and instead restart the put after every rebalance.
 %This does not violate lock-freedom since the number of threads is much smaller than the chunk size,  
 %hence it is impossible for pending puts to fill it up. %a whole chunk.
+
+The probability for invoking rebalance and the threshold on the ratio of the batched prefix control the aggressiveness of rebalancing. 
+On the one hand, aggressive rebalancing reduces put throughput because put threads shoulder the burden of rebalancing. 
+On the other hand, it favors gets and scans because it shortens search times and reduces iteration through deleted or over-written items. 
+We have chosen these parameters so as to strike a balance between the two. 
 
 \begin{figure*}
 \begin{center}
@@ -35,13 +43,17 @@ We did not implement the piggybacking of puts on rebalance, and instead restart 
 
 \textbf{Methodology.}
 We leverage the popular {\em synchrobench}  microbenchmark~\cite{Gramoli2015}
-to exercise a variety of workloads. The hardware platform %is a high-performance server, 
+to exercise a variety of workloads. The hardware platform 
 features four Intel Xeon E5-4650 8-core CPUs. %(i.e., 32 hardware threads overall). %hyperthreading disabled). 
 Every experiment starts with 20 seconds of {\em warmup} -- inserts
 and deletes of random keys -- to let the HotSpot compiler optimizations take effect. 
 It then runs 10  iterations, 5 seconds each, and averages the results. An iteration fills the map with 
 random (integer, integer) pairs, then exercises some workload. 
 Most experiments start from 1M pairs, except those focusing on high scalability that start from 10M.
+
+For the most part, we use the same methodology as previous works, which is the methodology supported by synchrobench, where keys are selected uniformly at random. 
+We additionally study an ordered workload to illustrate the benefit of using a balanced data structure as opposed to an unbalanced one. 
+We also experimented with a skewed distribution, where after populating the data structure with a uniform distribution over the full key range in the warmup phase, the measured experiments exercise only 10\% of the key range. The results were very similar (in absolute number as well as in trends) to the uniform distribution. For example, in one set of experiments with 4 update threads and 4 threads running scans of different ranges (10 to 25K keys), the put throughput in the skewed key distribution was within 2\% of the put throughput in the uniform one across all scan sizes. Scan times exhibited higher variability -- up to 15\% -- but did not show a clear advantage in one key distribution over the other. Rather, in some experiments the scan was faster over the skewed distribution and vice versa. 
 
 \textbf{Competition.}
 We compare {\kiwi} to Java implementations of three concurrent KV-maps: (1) the traditional 

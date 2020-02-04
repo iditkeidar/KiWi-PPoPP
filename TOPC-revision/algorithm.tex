@@ -70,12 +70,17 @@ the index may be inaccurate. Therefore, the index-based search is supplemented b
 \paragraph{Intra-chunk organization.}
 Each chunk is organized as an array-based linked list, sorted in increasing key order.
 KiWi chunks hold two arrays -- \code{v} with written values, and \code{k} with the linked list.
-Both arrays hold more entries than twice the number of threads, to ensure that a  chunk does not fill up with only pending operations (in case all threads but one become idle).
+%Both arrays hold more entries than twice the number of threads, to ensure that a  chunk does not fill up with only pending operations (in case all threads but one become idle).
 Each cell in \code{k} holds a key, a pointer \code{valPtr}
 to a value in \code{v}, and the index of the cell in \code{k} that holds the next key in the linked list.
 It also has a version number, as we explain shortly.
 When a chunk is created (as a result of rebalancing), some prefix (typically one half) of each array contains data,
 and the suffix consists of empty entries for future allocation.
+
+To ensure progress, we need to make sure that before rebalance happens, at least one thread successfully completes a put to the chunk,
+even if threads invoke operations that take up slots in the arrays and remain pending without ever completing. To this end, we 
+set the number of entries in the  \code{k}  and \code{v} arrays to be larger than twice the number of threads.
+
 
 % Batched prefix for efficient binary search
 The chunk's full prefix is initialized as sorted, that is, the linked-list successor of each cell is the ensuing cell in \code{k}.
@@ -88,6 +93,7 @@ We note that in case the insertion order is random, inserted cells are most like
 creating fairly short bypasses.
 Given that the prefix and the remainder are of similar sizes, the expected search time remains poly-logarithmic.
 Nevertheless, in the worst-case, the search time is linear in the size of the remainder of the chunk.
+Empirically, we have found that the batched prefix improves performance by an order of magnitude.
 
 In order to support atomic scans, KiWi employs \emph{multi-versioning}, i.e., sometimes keeps the old version of a key instead of overwriting it. To this end, KiWi maintains a \emph{global version}, \code{GV}, and tags each key-value pair with a version, \code{ver}. Versions of a key are chained in the linked-list in descending version order, so the most recent version is encountered first. 
 The compaction process that occurs as part of rebalancing eliminates obsolete versions.
