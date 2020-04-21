@@ -480,10 +480,8 @@ stored in the chunk (see Algorithm~\ref{alg:chunk}).
 			\State return true
 		\EndIf
 		\If{\codeF{$C$.vCounter} $\geq$ \codeF{$C$.v.size} $\vee$ \codeF{$C$.kCounter} $\geq$ \codeF{$C$.k.size} $\vee$ 
-			\codeF{$C$.status = frozen}  $ֿֿ\vee$ \codeF{policy($C$)} 
-			} 
-%			\State ok $\leftarrow$ \codeF{rebalance($C$, key, val)}
-%			\State normalize($C$)
+			\codeF{$C$.status = frozen}  $\vee$  \codeF{policy($C$)}
+			}
 			\If {$\neg$\codeF{rebalance($C$, key, val)}} \codeF{put(key, val)} \EndIf 
 			\State return true
 		\EndIf
